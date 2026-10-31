@@ -1,5 +1,5 @@
 // UPD Records API Client — Real-Time Shared Cloud Registry + Discord Channel Dispatch + OAuth2
-import { DOC_I18N, resolveTemplateForLang } from "./i18n.js?v=6";
+import { DOC_I18N, resolveTemplateForLang } from "./i18n.js?v=8";
 
 // Internal encoded endpoints & role references (never rendered on UI)
 const _INTERNAL = {
@@ -596,6 +596,7 @@ export async function renderDocumentSheetCanvas(doc) {
   const ctx = canvas.getContext("2d");
 
   const docLang = doc.lang || doc.data_json?._lang || "pt";
+  const isPt = docLang === "pt";
   const chrome = DOC_I18N[docLang] || DOC_I18N.pt;
   const rawTpl = store.templates.find(t => t.code === doc.template_code) || store.templates[0];
   const resolvedTpl = resolveTemplateForLang(rawTpl, docLang);

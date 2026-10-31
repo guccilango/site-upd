@@ -1,5 +1,5 @@
-import { DOC_I18N, resolveTemplateForLang, getDocumentLanguage } from "./i18n.js?v=7";
-import { getCurrentOfficer } from "./api.js?v=7";
+import { DOC_I18N, resolveTemplateForLang, getDocumentLanguage } from "./i18n.js?v=8";
+import { getCurrentOfficer } from "./api.js?v=8";
 
 export function esc(str) {
   return String(str ?? "")

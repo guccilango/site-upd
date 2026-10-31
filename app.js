@@ -17,7 +17,7 @@ import {
   pullSharedStore,
   downloadDocumentPdf,
   ensureDocumentFivemanageUrl
-} from "./api.js?v=7";
+} from "./api.js?v=8";
 import {
   DOC_I18N,
   getLanguage,
@@ -25,14 +25,17 @@ import {
   getDocumentLanguage,
   setDocumentLanguage,
   t,
-  resolveTemplateForLang
-} from "./i18n.js?v=7";
+  resolveTemplateForLang,
+  mountLangSwitch
+} from "./i18n.js?v=8";
 import {
   buildLiveSheetHtml,
   renderFilledBodyHtml,
   esc,
   getSiteVerifyUrl
-} from "./sheet-renderer.js?v=7";
+} from "./sheet-renderer.js?v=8";
+
+let beforeLangChange = null;
 
 function copyTextWithFeedback(text, btnEl) {
   if (!text) return;
@@ -89,9 +92,6 @@ function renderLoginScreen() {
             <div class="brand-sub">${esc(t("restrictedPortal"))}</div>
           </div>
         </div>
-        <button class="btn btn-ghost btn-lang-toggle" type="button" style="padding:4px 8px;font-size:12px;font-weight:600;" title="Alternar Idioma">
-          ${lang === 'pt' ? 'PT' : 'EN'}
-        </button>
       </div>
       <div class="nav-group">
         <div class="nav-group-label">${esc(t("publicVerifier"))}</div>
@@ -121,9 +121,6 @@ function renderLoginScreen() {
         <p class="page-sub">${esc(t("loginSub"))}</p>
       </div>
       <div class="header-actions" style="display:flex;gap:8px;align-items:center;">
-        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:600;">
-          ${lang === 'pt' ? 'PT' : 'EN'}
-        </button>
         <a class="btn btn-secondary" href="./verify.html">${esc(t("publicVerifier"))}</a>
       </div>
     </div>
@@ -153,35 +150,6 @@ function renderLoginScreen() {
         <a class="btn btn-primary" href="${esc(getDiscordOAuthUrl())}" style="width:100%;justify-content:center;height:38px;font-size:13.5px;font-weight:600;">
           ${esc(t("btnDiscordLogin"))}
         </a>
-
-        <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);">
-          <button class="btn btn-secondary" id="btn-toggle-recovery" type="button" style="width:100%;justify-content:center;">
-            ${esc(t("recoveryLoginBtn"))}
-          </button>
-          <div id="recovery-form-box" style="display:none;margin-top:16px;">
-            <form id="recovery-form" style="display:flex;flex-direction:column;gap:12px;">
-              <div class="field-group">
-                <label class="field-label">${esc(t("recoveryCredLabel"))}</label>
-                <input class="input mono" name="discord_id" placeholder="${esc(t("recoveryCredPlaceholder"))}" required />
-              </div>
-              <div class="field-group">
-                <label class="field-label">${esc(t("recoverySigLabel"))}</label>
-                <input class="input" name="rp_name" placeholder="Ex: John Miller" required />
-              </div>
-              <div class="field-group">
-                <label class="field-label">${esc(t("recoveryBadgeLabel"))}</label>
-                <input class="input mono" name="badge" placeholder="101" required />
-              </div>
-              <div class="field-group">
-                <label class="field-label">${esc(t("recoveryKeyLabel"))}</label>
-                <input class="input mono" type="password" name="key" placeholder="${esc(t("recoveryKeyPlaceholder"))}" required />
-              </div>
-              <button class="btn btn-primary" type="submit" style="width:100%;justify-content:center;height:36px;">
-                ${esc(t("recoverySubmitBtn"))}
-              </button>
-            </form>
-          </div>
-        </div>
       </section>
 
       <aside class="panel">
@@ -274,37 +242,6 @@ function renderLoginScreen() {
       </div>
     </section>
   `;
-
-  document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
-    btn.addEventListener("click", () => {
-      setLanguage(getLanguage() === "pt" ? "en" : "pt");
-      renderApp();
-    });
-  });
-
-  const recBtn = document.getElementById("btn-toggle-recovery");
-  const recBox = document.getElementById("recovery-form-box");
-  if (recBtn && recBox) {
-    recBtn.addEventListener("click", () => {
-      const isHidden = recBox.style.display === "none";
-      recBox.style.display = isHidden ? "block" : "none";
-      recBtn.textContent = isHidden ? esc(t("hideRecoveryBtn")) : esc(t("recoveryLoginBtn"));
-    });
-  }
-
-  const recForm = document.getElementById("recovery-form");
-  if (recForm) {
-    recForm.addEventListener("submit", e => {
-      e.preventDefault();
-      const fd = new FormData(recForm);
-      try {
-        loginOwnerDirect(fd.get("discord_id"), fd.get("key"), fd.get("rp_name"), fd.get("badge"));
-        renderApp();
-      } catch (err) {
-        alert(err.message);
-      }
-    });
-  }
 }
 
 // ─── Authenticated Sidebar & Views ────────────────────────────────────────────
@@ -329,9 +266,6 @@ function renderSidebar() {
             <div class="brand-sub">${esc(t("brandSub"))}</div>
           </div>
         </div>
-        <button class="btn btn-ghost btn-lang-toggle" type="button" style="padding:4px 8px;font-size:12px;font-weight:600;" title="Alternar Idioma">
-          ${lang === 'pt' ? 'PT' : 'EN'}
-        </button>
       </div>
 
       <div class="nav-group">
@@ -423,13 +357,6 @@ function renderSidebar() {
     </div>
   `;
 
-  document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
-    btn.addEventListener("click", () => {
-      setLanguage(getLanguage() === "pt" ? "en" : "pt");
-      renderApp();
-    });
-  });
-
   document.querySelectorAll("[data-route]").forEach(btn => {
     btn.addEventListener("click", () => {
       window.location.hash = btn.getAttribute("data-route");
@@ -468,9 +395,6 @@ function renderOverview(container) {
         <p class="page-sub">Unified Police Department · Los Santos</p>
       </div>
       <div class="header-actions" style="display:flex;align-items:center;gap:8px;">
-        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:600;">
-          ${lang === 'pt' ? 'PT' : 'EN'}
-        </button>
         <a class="btn btn-secondary" href="./verify.html">${esc(t("verifyControlNo"))}</a>
         <button class="btn btn-primary" id="btn-new-filing">${esc(t("newDocument"))}</button>
       </div>
@@ -806,6 +730,9 @@ function renderInspectModal(container) {
       pdfBtn.innerHTML = lang === "pt" ? "Gerando..." : "Generating...";
       try {
         await downloadDocumentPdf(doc);
+      } catch (err) {
+        console.error("PDF generation error:", err);
+        alert(lang === "pt" ? `Erro ao gerar PDF: ${err.message}` : `Error generating PDF: ${err.message}`);
       } finally {
         pdfBtn.disabled = false;
         pdfBtn.innerHTML = origText;
@@ -906,9 +833,6 @@ function renderComposer(container, codeParam, savedValues = null) {
         </p>
       </div>
       <div class="header-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:600;" title="${esc(t("siteLangNotice"))}">
-          ${lang === 'pt' ? 'PT' : 'EN'}
-        </button>
         <select id="tpl-picker" class="select" style="width:280px;">
           ${store.templates
             .filter(tplItem => tplItem.active)
@@ -995,15 +919,11 @@ function renderComposer(container, codeParam, savedValues = null) {
     </div>
   `;
 
-  document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
-    btn.addEventListener("click", () => {
-      container.querySelectorAll("[data-key]").forEach(inp => {
-        fieldValues[inp.getAttribute("data-key")] = inp.value;
-      });
-      setLanguage(getLanguage() === "pt" ? "en" : "pt");
-      renderApp();
+  beforeLangChange = () => {
+    container.querySelectorAll("[data-key]").forEach(inp => {
+      fieldValues[inp.getAttribute("data-key")] = inp.value;
     });
-  });
+  };
 
   container.querySelectorAll(".btn-doc-lang-choice").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1086,11 +1006,6 @@ function renderApprovals(container) {
         <p class="page-sub">
           ${esc(t("approvalsSub"))}
         </p>
-      </div>
-      <div class="header-actions" style="display:flex;align-items:center;gap:8px;">
-        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:600;">
-          ${lang === 'pt' ? 'PT' : 'EN'}
-        </button>
       </div>
     </div>
 
@@ -1192,17 +1107,21 @@ function renderApprovals(container) {
     }
   `;
 
-  document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
-    btn.addEventListener("click", () => {
-      setLanguage(getLanguage() === "pt" ? "en" : "pt");
-      renderApp();
-    });
-  });
-
   const appPdfBtn = container.querySelector("#btn-approval-pdf");
   if (appPdfBtn && activeDoc) {
     appPdfBtn.addEventListener("click", async () => {
-      await downloadDocumentPdf(activeDoc);
+      const origText = appPdfBtn.innerHTML;
+      appPdfBtn.disabled = true;
+      appPdfBtn.innerHTML = lang === "pt" ? "Gerando..." : "Generating...";
+      try {
+        await downloadDocumentPdf(activeDoc);
+      } catch (err) {
+        console.error("PDF generation error:", err);
+        alert(lang === "pt" ? `Erro ao gerar PDF: ${err.message}` : `Error generating PDF: ${err.message}`);
+      } finally {
+        appPdfBtn.disabled = false;
+        appPdfBtn.innerHTML = origText;
+      }
     });
   }
 
@@ -1595,6 +1514,12 @@ function renderTemplatesAdmin(container) {
 // ─── Main App Dispatcher ──────────────────────────────────────────────────────
 
 export function renderApp() {
+  beforeLangChange = null;
+  mountLangSwitch(() => {
+    beforeLangChange?.();
+    renderApp();
+  });
+
   const officer = getCurrentOfficer();
   if (!officer) {
     renderLoginScreen();
@@ -1620,15 +1545,6 @@ export function renderApp() {
   } else {
     renderOverview(main);
   }
-
-  const lang = getLanguage();
-  document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
-    btn.textContent = lang === "pt" ? "PT" : "EN";
-    btn.onclick = () => {
-      setLanguage(getLanguage() === "pt" ? "en" : "pt");
-      renderApp();
-    };
-  });
 }
 
 window.addEventListener("hashchange", renderApp);

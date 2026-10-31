@@ -78,7 +78,7 @@
   </style>
 </head>
 <body>
-  <main class="canvas" style="max-width:860px;margin:0 auto;padding-top:36px;padding-bottom:60px;">
+  <main class="canvas" style="max-width:860px;margin:0 auto;padding-top:64px;padding-bottom:60px;">
     <div class="page-header no-print">
       <div style="display:flex;align-items:center;gap:14px;">
         <img src="./assets/opacidade2.png" alt="UPD Crest" style="width:48px;height:48px;object-fit:contain;" />
@@ -88,7 +88,6 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <button class="btn btn-secondary" id="btn-verify-lang" type="button" style="font-weight:600;">PT</button>
         <a class="btn btn-secondary" id="btn-back" href="./index.html">Voltar ao Portal</a>
       </div>
     </div>
@@ -113,12 +112,11 @@
 
   <script type="module">
     import { fetchPublicVerifyRecord, store, pullSharedStore } from "./api.js?v=8";
-    import { t, getLanguage, setLanguage } from "./i18n.js?v=8";
+    import { t, getLanguage, setLanguage, mountLangSwitch } from "./i18n.js?v=8";
     import { buildLiveSheetHtml, esc, getSiteVerifyUrl } from "./sheet-renderer.js?v=8";
 
     const input = document.getElementById("verify-input");
     const resultBox = document.getElementById("verify-result");
-    const langBtn = document.getElementById("btn-verify-lang");
 
     function copyToClipboard(text, btn) {
       const orig = btn.innerHTML;
@@ -135,7 +133,6 @@
 
     function updateStaticTexts() {
       const lang = getLanguage();
-      langBtn.textContent = lang === "pt" ? "PT" : "EN";
       document.getElementById("page-title").textContent = t("qrTitle");
       document.getElementById("page-sub").textContent = t("qrSub");
       document.getElementById("btn-back").textContent = t("backToPortal");
@@ -146,8 +143,7 @@
         : "Verify official warrants and certificates issued by the bureau.";
     }
 
-    langBtn.addEventListener("click", () => {
-      setLanguage(getLanguage() === "pt" ? "en" : "pt");
+    mountLangSwitch(() => {
       updateStaticTexts();
       if (input.value) runVerification(input.value);
     });
