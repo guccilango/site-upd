@@ -1,4 +1,5 @@
-// UPD Records API Client — Discord OAuth2 + Supervisor Role Verification (No Fake Demo Users)
+// UPD Records API Client — Real-Time Shared Cloud Registry + Discord Channel Dispatch + OAuth2
+import { DOC_I18N, resolveTemplateForLang } from "./i18n.js?v=5";
 
 // Internal encoded endpoints & role references (never rendered on UI)
 const _INTERNAL = {
@@ -7,8 +8,19 @@ const _INTERNAL = {
   supRole: atob("MTUwMTcxNDA3Mzc0NDU3MjQ1Ng=="),
   ownerId: atob("Mzk1NzU5NzA1Nzg5NTYyODgx"),
   masterKey: atob("VVBELUFETUlOLTIwMjY="),
-  clientSec: atob("T0swSlZmUXI0TnU1MWhGaHRSbG03UWpEek13dmlJN1I=")
+  clientSec: atob("T0swSlZmUXI0TnU1MWhGaHRSbG03UWpEek13dmlJN1I="),
+  docsWh: atob("aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvdjEwL3dlYmhvb2tzLzE1NjYwMTExMDE1ODg2Mjc0ODYvQkJPa2hSWlAya0dWRmJUUGdkeGlYZUtiNmE2MHBFNDdMOVBOT2x4Y25MdEpheUlQM0ZCd1B3NU1WZHVMQ2NsOTJkdWg="),
+  syncWh: atob("aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvdjEwL3dlYmhvb2tzLzE1NjYwMTEyNDk2MjI1MjM5NjQvR2x6Tk5ac2dRSjF6Z2FRYTd6ZkFscVZPQnp5VnlOTDZnb21SVGk4Uks1TUs5NXFhQ2V4YmFuQnZwUG9OU0hBRHctRUs="),
+  syncMid: atob("MTU2NjAxMjMxMjUzNDUxNTc4Mw==")
 };
+
+const STORE_STORAGE_KEY = "upd_portal_store_v4";
+let _activeSyncMid = localStorage.getItem("upd_sync_mid") || _INTERNAL.syncMid;
+let _isPushing = false;
+let _pushPending = false;
+let _initialSyncDone = false;
+
+const _bc = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("upd_realtime_sync") : null;
 
 const INITIAL_RANKS = [
   { id: 1, name: "Cadet", level: 1, discord_role_id: "" },
@@ -155,13 +167,23 @@ const INITIAL_TEMPLATES = [
   }
 ];
 
+function cloneDeep(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
 function loadLocalStore() {
-  const raw = localStorage.getItem("upd_portal_store_v3");
+  const raw = localStorage.getItem(STORE_STORAGE_KEY);
   if (raw) {
-    try { return JSON.parse(raw); } catch (_) {}
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.ranks) && Array.isArray(parsed.officers)) {
+        return parsed;
+      }
+    } catch (_) {}
   }
   const initial = {
-    ranks: INITIAL_RANKS,
+    rev: 0,
+    ranks: cloneDeep(INITIAL_RANKS),
     officers: [
       {
         id: 1,
@@ -173,21 +195,680 @@ function loadLocalStore() {
         rank_id: 14,
         rank_name: "Chief of Police",
         rank_level: 14,
-        is_admin: 1
+        is_admin: 1,
+        _updated_at: 1
       }
     ],
-    templates: INITIAL_TEMPLATES,
-    documents: []
+    templates: cloneDeep(INITIAL_TEMPLATES),
+    documents: [],
+    chunk_ids: []
   };
-  localStorage.setItem("upd_portal_store_v3", JSON.stringify(initial));
+  localStorage.setItem(STORE_STORAGE_KEY, JSON.stringify(initial));
   return initial;
 }
 
-export function saveLocalStore(st) {
-  localStorage.setItem("upd_portal_store_v3", JSON.stringify(st));
+export const store = loadLocalStore();
+
+// ─── Real-Time Shared Cloud Sync Engine ───────────────────────────────────────
+
+function statusPriority(status) {
+  const s = String(status || "PENDING").toUpperCase();
+  if (s === "REVOKED") return 4;
+  if (s === "APPROVED") return 3;
+  if (s === "REJECTED") return 2;
+  return 1;
 }
 
-export const store = loadLocalStore();
+function mergeRemoteIntoStore(remote) {
+  if (!remote || typeof remote !== "object") return false;
+
+  // 1. Ranks
+  const rankMap = new Map(INITIAL_RANKS.map(r => [Number(r.id), cloneDeep(r)]));
+  for (const r of store.ranks || []) {
+    rankMap.set(Number(r.id), { ...rankMap.get(Number(r.id)), ...r });
+  }
+  for (const r of remote.customRanks || remote.ranks || []) {
+    const id = Number(r.id);
+    const cur = rankMap.get(id);
+    if (!cur || (Number(r._updated_at) || 0) >= (Number(cur._updated_at) || 0)) {
+      rankMap.set(id, { ...cur, ...r });
+    }
+  }
+  store.ranks = Array.from(rankMap.values()).sort((a, b) => a.level - b.level);
+
+  // 2. Officers
+  const offMap = new Map();
+  for (const o of store.officers || []) {
+    offMap.set(String(o.discord_id), { ...o });
+  }
+  for (const o of remote.officers || []) {
+    const key = String(o.discord_id);
+    const cur = offMap.get(key);
+    if (!cur || (Number(o._updated_at) || 0) >= (Number(cur._updated_at) || 0)) {
+      offMap.set(key, { ...cur, ...o });
+    }
+  }
+  store.officers = Array.from(offMap.values()).sort((a, b) => (b.rank_level || 0) - (a.rank_level || 0));
+
+  // 3. Templates
+  const tplMap = new Map(INITIAL_TEMPLATES.map(t => [t.code, cloneDeep(t)]));
+  for (const t of store.templates || []) {
+    if ((t.version || 1) > 1 || !tplMap.has(t.code)) {
+      tplMap.set(t.code, { ...tplMap.get(t.code), ...t });
+    }
+  }
+  for (const t of remote.customTemplates || []) {
+    const cur = tplMap.get(t.code);
+    if (!cur || (Number(t.version) || 1) >= (Number(cur.version) || 1)) {
+      tplMap.set(t.code, { ...cur, ...t });
+    }
+  }
+  store.templates = Array.from(tplMap.values());
+
+  // 4. Documents
+  const docMap = new Map();
+  for (const d of store.documents || []) {
+    docMap.set(Number(d.id), { ...d });
+  }
+  for (const d of remote.documents || []) {
+    const id = Number(d.id);
+    const cur = docMap.get(id);
+    if (!cur) {
+      docMap.set(id, { ...d });
+    } else {
+      const remPrio = statusPriority(d.status);
+      const curPrio = statusPriority(cur.status);
+      const remTime = Number(d._updated_at) || 0;
+      const curTime = Number(cur._updated_at) || 0;
+      if (remPrio > curPrio || (remPrio === curPrio && remTime >= curTime)) {
+        docMap.set(id, { ...cur, ...d, discord_posted: Boolean(cur.discord_posted || d.discord_posted) });
+      }
+    }
+  }
+  store.documents = Array.from(docMap.values()).sort((a, b) => Number(b.id) - Number(a.id));
+
+  if (Array.isArray(remote.chunk_ids)) {
+    store.chunk_ids = remote.chunk_ids;
+  }
+  store.rev = Math.max(Number(store.rev) || 0, Number(remote.rev) || 1);
+  return true;
+}
+
+async function resolveWebhookMid() {
+  try {
+    const r = await fetch(`${_INTERNAL.syncWh}?_t=${Date.now()}`, { cache: "no-store" });
+    if (r.ok) {
+      const hook = await r.json();
+      if (hook.name && hook.name.startsWith("UPD-Sync:")) {
+        const mid = hook.name.split(":")[1]?.trim();
+        if (mid && /^\d+$/.test(mid)) {
+          _activeSyncMid = mid;
+          localStorage.setItem("upd_sync_mid", mid);
+          return mid;
+        }
+      }
+    }
+  } catch (_) {}
+  return _activeSyncMid;
+}
+
+export async function pullSharedStore(force = false) {
+  if (_isPushing && !force) return false;
+  try {
+    let res = await fetch(`${_INTERNAL.syncWh}/messages/${_activeSyncMid}?_t=${Date.now()}`, {
+      cache: "no-store"
+    });
+    if (res.status === 404) {
+      const resolved = await resolveWebhookMid();
+      if (resolved !== _activeSyncMid) {
+        res = await fetch(`${_INTERNAL.syncWh}/messages/${_activeSyncMid}?_t=${Date.now()}`, {
+          cache: "no-store"
+        });
+      }
+    }
+    if (!res.ok) return false;
+
+    const msg = await res.json();
+    const header = String(msg.content || "");
+    const parts = header.split("|");
+    const remoteRev = Number(parts[1]) || 0;
+    const chunkIds = (parts[2] || "")
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    if (!force && _initialSyncDone && remoteRev > 0 && remoteRev === Number(store.rev)) {
+      return false;
+    }
+
+    let rawJson = (msg.embeds || []).map(e => e.description || "").join("");
+    for (const cid of chunkIds) {
+      const cRes = await fetch(`${_INTERNAL.syncWh}/messages/${cid}?_t=${Date.now()}`, {
+        cache: "no-store"
+      });
+      if (cRes.ok) {
+        const cMsg = await cRes.json();
+        rawJson += (cMsg.embeds || []).map(e => e.description || "").join("");
+      }
+    }
+
+    if (!rawJson) return false;
+    const remoteData = JSON.parse(rawJson);
+    const prevSnapshot = JSON.stringify({
+      o: store.officers.length,
+      r: store.ranks.length,
+      d: store.documents.map(x => `${x.id}:${x.status}:${x.control_no || ""}`).join(",")
+    });
+
+    mergeRemoteIntoStore(remoteData);
+    _initialSyncDone = true;
+    localStorage.setItem(STORE_STORAGE_KEY, JSON.stringify(store));
+
+    const nextSnapshot = JSON.stringify({
+      o: store.officers.length,
+      r: store.ranks.length,
+      d: store.documents.map(x => `${x.id}:${x.status}:${x.control_no || ""}`).join(",")
+    });
+
+    if (force || prevSnapshot !== nextSnapshot) {
+      window.dispatchEvent(new CustomEvent("upd:store-updated", { detail: { rev: store.rev, source: "cloud" } }));
+    }
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function splitString(str, size) {
+  const out = [];
+  for (let i = 0; i < str.length; i += size) {
+    out.push(str.slice(i, i + size));
+  }
+  return out.length ? out : ["{}"];
+}
+
+async function pushSharedStore() {
+  if (_isPushing) {
+    _pushPending = true;
+    return;
+  }
+  _isPushing = true;
+  try {
+    // Pull & merge latest remote state before writing so concurrent users never overwrite each other
+    await pullSharedStore(true);
+
+    const customRanks = store.ranks.filter(r => {
+      const base = INITIAL_RANKS.find(ir => ir.id === r.id);
+      return !base || base.name !== r.name || base.level !== r.level || base.discord_role_id !== r.discord_role_id;
+    });
+    const customTemplates = store.templates.filter(
+      t => (t.version || 1) > 1 || !INITIAL_TEMPLATES.some(it => it.code === t.code)
+    );
+
+    const cloudObj = {
+      rev: store.rev,
+      officers: store.officers,
+      customRanks,
+      customTemplates,
+      documents: store.documents,
+      chunk_ids: store.chunk_ids || []
+    };
+
+    const serialized = JSON.stringify(cloudObj);
+    // Each message holds up to 5,200 chars across 2 embeds (2,600 chars each, well below Discord's 6,000 limit)
+    const pages = splitString(serialized, 5200);
+    const overflowPages = pages.slice(1);
+    const activeChunkIds = [];
+
+    for (let i = 0; i < overflowPages.length; i++) {
+      const pageStr = overflowPages[i];
+      const subChunks = splitString(pageStr, 2600);
+      const embeds = subChunks.map((sc, idx) => ({
+        title: idx === 0 ? `UPD_STATE_OVERFLOW_${i + 1}` : undefined,
+        description: sc,
+        color: 1121848
+      }));
+      const existingCid = (store.chunk_ids || [])[i];
+      let savedCid = null;
+      if (existingCid) {
+        const pRes = await fetch(`${_INTERNAL.syncWh}/messages/${existingCid}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: `UPD_OVERFLOW_${i + 1}|${store.rev}`, embeds })
+        });
+        if (pRes.ok) savedCid = existingCid;
+      }
+      if (!savedCid) {
+        const cRes = await fetch(`${_INTERNAL.syncWh}?wait=true`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: `UPD_OVERFLOW_${i + 1}|${store.rev}`, embeds })
+        });
+        if (cRes.ok) {
+          const cMsg = await cRes.json();
+          savedCid = cMsg.id;
+        }
+      }
+      if (savedCid) activeChunkIds.push(savedCid);
+    }
+
+    store.chunk_ids = activeChunkIds;
+    const rootSubChunks = splitString(pages[0], 2600);
+    const rootEmbeds = rootSubChunks.map((sc, idx) => ({
+      title: idx === 0 ? "UPD_CLOUD_STATE" : undefined,
+      description: sc,
+      color: 1121848
+    }));
+    const rootPayload = {
+      content: `UPD_REALTIME_SYNC_V1|${store.rev}|${activeChunkIds.join(",")}`,
+      embeds: rootEmbeds
+    };
+
+    let rootRes = await fetch(`${_INTERNAL.syncWh}/messages/${_activeSyncMid}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rootPayload)
+    });
+
+    if (rootRes.status === 404) {
+      const createRes = await fetch(`${_INTERNAL.syncWh}?wait=true`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rootPayload)
+      });
+      if (createRes.ok) {
+        const created = await createRes.json();
+        _activeSyncMid = created.id;
+        localStorage.setItem("upd_sync_mid", _activeSyncMid);
+        fetch(_INTERNAL.syncWh, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: `UPD-Sync:${_activeSyncMid}` })
+        }).catch(() => {});
+      }
+    }
+  } catch (_) {
+  } finally {
+    _isPushing = false;
+    if (_pushPending) {
+      _pushPending = false;
+      pushSharedStore();
+    }
+  }
+}
+
+export function saveLocalStore(st) {
+  st.rev = Date.now();
+  localStorage.setItem(STORE_STORAGE_KEY, JSON.stringify(st));
+  if (_bc) {
+    try {
+      _bc.postMessage({ type: "store-updated", rev: st.rev });
+    } catch (_) {}
+  }
+  window.dispatchEvent(new CustomEvent("upd:store-updated", { detail: { rev: st.rev, source: "local" } }));
+  pushSharedStore();
+}
+
+// Start real-time sync loop across tabs and across all connected users
+if (typeof window !== "undefined") {
+  if (_bc) {
+    _bc.onmessage = () => {
+      const raw = localStorage.getItem(STORE_STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          mergeRemoteIntoStore(parsed);
+          window.dispatchEvent(new CustomEvent("upd:store-updated", { detail: { rev: store.rev, source: "tab" } }));
+        } catch (_) {}
+      }
+    };
+  }
+  pullSharedStore(true);
+  setInterval(() => {
+    if (document.visibilityState !== "hidden") {
+      pullSharedStore(false);
+    }
+  }, 3000);
+  window.addEventListener("focus", () => pullSharedStore(false));
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") pullSharedStore(false);
+  });
+}
+
+// ─── Official US-Letter Document Canvas Renderer & Discord Channel Dispatch ──
+
+function loadImage(src) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+function wrapCanvasParagraphs(ctx, text, maxWidth) {
+  const lines = [];
+  const rawLines = String(text || "").split("\n");
+  for (const raw of rawLines) {
+    if (!raw.trim()) {
+      lines.push({ text: "", bold: false });
+      continue;
+    }
+    const isBoldHeader = /^<b>.*<\/b>$/i.test(raw.trim()) || /^[I|V|X]+\.\s+[A-ZÀ-Ú\s&]+$/.test(raw.trim());
+    const cleanLine = raw.replace(/<\/?b>/gi, "");
+    const words = cleanLine.split(/\s+/);
+    let current = "";
+    for (const w of words) {
+      const test = current ? `${current} ${w}` : w;
+      if (ctx.measureText(test).width > maxWidth && current) {
+        lines.push({ text: current, bold: isBoldHeader });
+        current = w;
+      } else {
+        current = test;
+      }
+    }
+    if (current) {
+      lines.push({ text: current, bold: isBoldHeader });
+    }
+  }
+  return lines;
+}
+
+export async function renderDocumentSheetPngBlob(doc) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1020;
+  canvas.height = 1320;
+  const ctx = canvas.getContext("2d");
+
+  const docLang = doc.lang || doc.data_json?._lang || "pt";
+  const chrome = DOC_I18N[docLang] || DOC_I18N.pt;
+  const rawTpl = store.templates.find(t => t.code === doc.template_code) || store.templates[0];
+  const resolvedTpl = resolveTemplateForLang(rawTpl, docLang);
+
+  // Paper background & outer border
+  ctx.fillStyle = "#fcfbf7";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = "#111e38";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(28, 28, canvas.width - 56, canvas.height - 56);
+  ctx.strokeStyle = "#a8842a";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(34, 34, canvas.width - 68, canvas.height - 68);
+
+  const [crestImg, sealImg] = await Promise.all([
+    loadImage("./assets/opacidade2.png"),
+    loadImage("./assets/selo.png")
+  ]);
+
+  // Watermark
+  if (crestImg) {
+    ctx.save();
+    ctx.globalAlpha = 0.045;
+    ctx.drawImage(crestImg, (canvas.width - 420) / 2, (canvas.height - 420) / 2, 420, 420);
+    ctx.restore();
+  }
+
+  // Masthead Crest & Department Header
+  if (crestImg) {
+    ctx.drawImage(crestImg, 56, 54, 68, 68);
+  }
+  ctx.fillStyle = "#111e38";
+  ctx.font = "bold 20px 'IBM Plex Sans', Arial, sans-serif";
+  ctx.fillText(chrome.deptTitle, 136, 76);
+  ctx.fillStyle = "#334155";
+  ctx.font = "bold 11px 'IBM Plex Sans', Arial, sans-serif";
+  ctx.fillText(chrome.deptSub, 136, 95);
+  ctx.fillStyle = "#64748b";
+  ctx.font = "11px 'IBM Plex Sans', Arial, sans-serif";
+  ctx.fillText(chrome.deptJuris, 136, 113);
+
+  // Right Masthead Metadata
+  const ctrl = doc.control_no || `DRAFT-${doc.id}`;
+  const dateStr = (doc.approved_at || doc.created_at || new Date().toISOString()).slice(0, 10);
+  const seriesStr = resolvedTpl.category === "doj" ? chrome.seriesDoj : chrome.seriesInternal;
+  const statusStr = doc.status === "APPROVED" ? (docLang === "pt" ? "APROVADO" : "APPROVED") : doc.status;
+
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#111e38";
+  ctx.font = "bold 12px 'IBM Plex Mono', monospace";
+  ctx.fillText(`${chrome.ctrlNoLabel} ${ctrl}`, canvas.width - 56, 70);
+  ctx.font = "11px 'IBM Plex Mono', monospace";
+  ctx.fillText(`${chrome.dateLabel} ${dateStr}`, canvas.width - 56, 88);
+  ctx.fillText(`${chrome.seriesLabel} ${seriesStr}`, canvas.width - 56, 104);
+  ctx.fillStyle = "#145a32";
+  ctx.font = "bold 11px 'IBM Plex Mono', monospace";
+  ctx.fillText(`${chrome.statusLabel} ${statusStr}`, canvas.width - 56, 120);
+  ctx.textAlign = "left";
+
+  // Gold Rule
+  ctx.fillStyle = "#a8842a";
+  ctx.fillRect(56, 136, canvas.width - 112, 3);
+
+  // Caption Box
+  ctx.fillStyle = "#f4f1ea";
+  ctx.fillRect(56, 152, canvas.width - 112, 82);
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.strokeRect(56, 152, canvas.width - 112, 82);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#475569";
+  ctx.font = "bold 11px 'IBM Plex Sans', Arial, sans-serif";
+  const courtLines = String(resolvedTpl.court_header || "UNIFIED POLICE DEPARTMENT").split("\n");
+  courtLines.forEach((cl, idx) => {
+    ctx.fillText(cl, canvas.width / 2, 172 + idx * 15);
+  });
+
+  ctx.fillStyle = "#111e38";
+  ctx.font = "bold 15px 'IBM Plex Sans', Arial, sans-serif";
+  const titleLines = String(resolvedTpl.title || resolvedTpl.name).split("\n");
+  titleLines.forEach((tl, idx) => {
+    ctx.fillText(tl, canvas.width / 2, 206 + idx * 18);
+  });
+  ctx.textAlign = "left";
+
+  // Body Text
+  const vars = {
+    ...(doc.data_json || {}),
+    issuer_name: doc.issuer_name,
+    issuer_badge: doc.issuer_badge,
+    issuer_rank: doc.issuer_rank,
+    issuer_division: docLang === "pt" ? "Divisão de Operações" : "Operations Division"
+  };
+  const filledBody = String(resolvedTpl.body || "").replace(/\{([a-zA-Z0-9_]+)\}/g, (_, k) => {
+    const val = vars[k];
+    return val !== undefined && val !== "" ? String(val) : `[${k}]`;
+  });
+
+  ctx.font = "13.5px 'IBM Plex Sans', Georgia, serif";
+  const wrapped = wrapCanvasParagraphs(ctx, filledBody, canvas.width - 124);
+  let y = 264;
+  const maxBodyY = 1045;
+  for (const ln of wrapped) {
+    if (y > maxBodyY) break;
+    if (!ln.text) {
+      y += 10;
+      continue;
+    }
+    ctx.font = ln.bold ? "bold 13.5px 'IBM Plex Sans', Arial, sans-serif" : "13.5px 'IBM Plex Sans', Georgia, serif";
+    ctx.fillStyle = ln.bold ? "#111e38" : "#1e293b";
+    ctx.fillText(ln.text, 62, y);
+    y += 20;
+  }
+
+  // Signature & Seal Footer Box
+  const sigTop = 1075;
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(56, sigTop);
+  ctx.lineTo(canvas.width - 56, sigTop);
+  ctx.stroke();
+
+  // Left: Issuing Officer
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 10px 'IBM Plex Sans', Arial, sans-serif";
+  ctx.fillText(chrome.sigIssuerRole.toUpperCase(), 62, sigTop + 24);
+  ctx.fillStyle = "#1a365d";
+  ctx.font = "italic 26px Georgia, serif";
+  ctx.fillText(doc.issuer_name || "Officer", 62, sigTop + 62);
+  ctx.fillStyle = "#334155";
+  ctx.fillRect(62, sigTop + 72, 280, 1.5);
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 12px 'IBM Plex Sans', Arial, sans-serif";
+  ctx.fillText(String(doc.issuer_name || "").toUpperCase(), 62, sigTop + 90);
+  ctx.fillStyle = "#475569";
+  ctx.font = "11px 'IBM Plex Sans', Arial, sans-serif";
+  ctx.fillText(`${doc.issuer_rank} · Badge #${doc.issuer_badge}`, 62, sigTop + 107);
+  ctx.fillText("Unified Police Department", 62, sigTop + 123);
+
+  // Center: Seal
+  if (sealImg) {
+    ctx.drawImage(sealImg, (canvas.width - 92) / 2, sigTop + 18, 92, 92);
+  }
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#a8842a";
+  ctx.font = "bold 9px 'IBM Plex Mono', monospace";
+  ctx.fillText(chrome.sealText, canvas.width / 2, sigTop + 124);
+
+  // Right: Approving Officer
+  const rightX = canvas.width - 342;
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 10px 'IBM Plex Sans', Arial, sans-serif";
+  ctx.fillText(chrome.sigApproverRole.toUpperCase(), rightX, sigTop + 24);
+  ctx.fillStyle = "#1a365d";
+  ctx.font = "italic 26px Georgia, serif";
+  ctx.fillText(doc.approver_name || doc.issuer_name || "Commander", rightX, sigTop + 62);
+  ctx.fillStyle = "#334155";
+  ctx.fillRect(rightX, sigTop + 72, 280, 1.5);
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 12px 'IBM Plex Sans', Arial, sans-serif";
+  ctx.fillText(String(doc.approver_name || "").toUpperCase(), rightX, sigTop + 90);
+  ctx.fillStyle = "#475569";
+  ctx.font = "11px 'IBM Plex Sans', Arial, sans-serif";
+  ctx.fillText(`${doc.approver_rank} · Badge #${doc.approver_badge}`, rightX, sigTop + 107);
+  ctx.fillText(chrome.sigCountersigned.replace("{date}", dateStr), rightX, sigTop + 123);
+
+  // Bottom Verification Bar
+  ctx.fillStyle = "#111e38";
+  ctx.fillRect(56, 1230, canvas.width - 112, 34);
+  ctx.fillStyle = "#f8fafc";
+  ctx.font = "bold 10.5px 'IBM Plex Mono', monospace";
+  ctx.fillText(chrome.footerVerify.replace("{ctrl}", ctrl), 72, 1251);
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#cbd5e1";
+  ctx.fillText(chrome.footerSensitive, canvas.width - 72, 1251);
+  ctx.textAlign = "left";
+
+  return new Promise(resolve => canvas.toBlob(blob => resolve(blob), "image/png", 0.95));
+}
+
+export async function postApprovedDocumentToDiscord(doc) {
+  if (!doc || doc.status !== "APPROVED") return null;
+  const docLang = doc.lang || doc.data_json?._lang || "pt";
+  const isPt = docLang === "pt";
+  const rawTpl = store.templates.find(t => t.code === doc.template_code) || {
+    code: doc.template_code,
+    name: doc.template_name,
+    category: doc.category
+  };
+  const resolvedTpl = resolveTemplateForLang(rawTpl, docLang);
+  const ctrl = doc.control_no || `UPD-${doc.template_code}-${doc.id}`;
+  const siteBase = (window.UPD_CONFIG?.SITE_URL || "https://guccilango.github.io/site-upd").replace(/\/+$/, "");
+  const verifyUrl = `${siteBase}/verify.html?n=${encodeURIComponent(ctrl)}`;
+
+  try {
+    const pngBlob = await renderDocumentSheetPngBlob(doc);
+    const filename = `${ctrl}.png`;
+
+    const embed = {
+      title: `📜 ${ctrl} — [${doc.template_code}] ${resolvedTpl.name || doc.template_name}`,
+      url: verifyUrl,
+      color: 0x145a32,
+      description: isPt
+        ? `Documento oficial emitido, autenticado e contra-assinado no **Portal de Comando e Registros da Unified Police Department**.`
+        : `Official record issued, authenticated, and counter-signed in the **Unified Police Department Command & Records Portal**.`,
+      fields: [
+        {
+          name: isPt ? "Nº de Controle Oficial" : "Official Control No.",
+          value: `\`${ctrl}\``,
+          inline: true
+        },
+        {
+          name: isPt ? "Classificação" : "Classification",
+          value:
+            doc.category === "doj"
+              ? isPt
+                ? "Processo Judicial DOJ"
+                : "DOJ Judicial Filing"
+              : isPt
+                ? "Certificação Interna UPD"
+                : "Internal UPD Record",
+          inline: true
+        },
+        {
+          name: isPt ? "Idioma" : "Language",
+          value: isPt ? "🇧🇷 Português" : "🇺🇸 English",
+          inline: true
+        },
+        {
+          name: isPt ? "Oficial Requerente / Emissor" : "Submitting / Issuing Officer",
+          value: `${doc.issuer_rank} **${doc.issuer_name}** (Badge #${doc.issuer_badge})`,
+          inline: true
+        },
+        {
+          name: isPt ? "Contra-Assinado Por (Comando)" : "Counter-Signed By (Command)",
+          value: `${doc.approver_rank} **${doc.approver_name}** (Badge #${doc.approver_badge})`,
+          inline: true
+        },
+        {
+          name: isPt ? "Autenticidade Pública" : "Public Verification",
+          value: isPt
+            ? `[🔍 Verificar Registro Oficial](${verifyUrl})`
+            : `[🔍 Verify Official Record](${verifyUrl})`,
+          inline: true
+        }
+      ],
+      image: { url: `attachment://${filename}` },
+      footer: {
+        text: "Unified Police Department · Records & Judicial Filing Bureau"
+      },
+      timestamp: doc.approved_at || new Date().toISOString()
+    };
+
+    const formData = new FormData();
+    formData.append(
+      "payload_json",
+      JSON.stringify({
+        username: "Unified Police Department — Official Records",
+        embeds: [embed]
+      })
+    );
+    if (pngBlob) {
+      formData.append("files[0]", pngBlob, filename);
+    }
+
+    const res = await fetch(`${_INTERNAL.docsWh}?wait=true`, {
+      method: "POST",
+      body: formData
+    });
+    if (res.ok) {
+      const msg = await res.json();
+      doc.discord_posted = true;
+      doc.discord_msg_id = msg.id;
+      if (msg.attachments && msg.attachments[0] && msg.attachments[0].url) {
+        doc.png_url = msg.attachments[0].url;
+      }
+      doc._updated_at = Date.now();
+      saveLocalStore(store);
+      return msg;
+    }
+  } catch (err) {
+    console.error("Failed to dispatch document to Discord channel:", err);
+  }
+  return null;
+}
 
 // ─── Session & Discord OAuth2 Verification ────────────────────────────────────
 
@@ -253,13 +934,15 @@ export function loginOwnerDirect(discordId, accessKey, rpName, badge) {
       rank_id: 14,
       rank_name: "Chief of Police",
       rank_level: 14,
-      is_admin: 1
+      is_admin: 1,
+      _updated_at: Date.now()
     };
     store.officers.push(officer);
     saveLocalStore(store);
   } else if (officer && rpName) {
     officer.rp_name = rpName.trim();
     if (badge) officer.badge = badge.trim();
+    officer._updated_at = Date.now();
     saveLocalStore(store);
   }
 
@@ -327,6 +1010,7 @@ export async function handleDiscordOAuthCallbackIfPresent() {
   if (!accessToken) return null;
 
   window.history.replaceState(null, "", window.location.pathname);
+  await pullSharedStore(true);
 
   const userRes = await fetch("https://discord.com/api/users/@me", {
     headers: { Authorization: `Bearer ${accessToken}` }
@@ -381,11 +1065,13 @@ export async function handleDiscordOAuthCallbackIfPresent() {
       rank_id: topRank.id,
       rank_name: topRank.name,
       rank_level: topRank.level,
-      is_admin: isOwner || hasSupervisorRole ? 1 : 0
+      is_admin: isOwner || hasSupervisorRole ? 1 : 0,
+      _updated_at: Date.now()
     };
     store.officers.push(officer);
     saveLocalStore(store);
   } else {
+    officer._updated_at = Date.now();
     if (isOwner || hasSupervisorRole) {
       officer.is_admin = 1;
       officer.status = "active";
@@ -407,10 +1093,7 @@ export async function handleDiscordOAuthCallbackIfPresent() {
 }
 
 export async function fetchPublicVerifyRecord(code) {
-  try {
-    const res = await fetch(`${_INTERNAL.api}/api/verify/${encodeURIComponent(code)}`);
-    if (res.ok) return await res.json();
-  } catch (_) {}
+  await pullSharedStore(true);
   return verifyControlNoLocal(code);
 }
 
@@ -447,7 +1130,7 @@ export function createDraftLocal(templateCode, fieldValues) {
     if (f.required && !val) throw new Error(`Missing required field: ${f.label}`);
   }
 
-  const nextId = store.documents.reduce((m, d) => Math.max(m, d.id), 100) + 1;
+  const nextId = store.documents.reduce((m, d) => Math.max(m, Number(d.id) || 100), 100) + 1;
   const doc = {
     id: nextId,
     control_no: null,
@@ -467,8 +1150,10 @@ export function createDraftLocal(templateCode, fieldValues) {
     created_at: new Date().toISOString(),
     approved_at: null,
     png_url: null,
+    discord_posted: false,
     data_json: { ...fieldValues },
-    lang: fieldValues._lang || "pt"
+    lang: fieldValues._lang || "pt",
+    _updated_at: Date.now()
   };
   store.documents.unshift(doc);
   saveLocalStore(store);
@@ -478,29 +1163,36 @@ export function createDraftLocal(templateCode, fieldValues) {
 export function approveDocumentLocal(docId) {
   const officer = getCurrentOfficer();
   if (!officer) throw new Error("Autenticação necessária.");
-  const doc = store.documents.find(d => d.id === Number(docId));
+  const doc = store.documents.find(d => Number(d.id) === Number(docId));
   if (!doc) throw new Error("Document not found");
   if (!canApproveDocument(officer, doc)) {
     throw new Error("Autoaprovação restrita ao High Command ou patente abaixo do mínimo exigido.");
   }
   const year = new Date().getFullYear();
-  const sameCode = store.documents.filter(d => d.template_code === doc.template_code && d.control_no);
+  const sameCode = store.documents.filter(
+    d => d.template_code === doc.template_code && d.control_no && Number(d.id) !== Number(doc.id)
+  );
   const seq = String(sameCode.length + 1).padStart(4, "0");
-  doc.control_no = `UPD-${doc.template_code}-${year}-${seq}`;
+  doc.control_no = doc.control_no || `UPD-${doc.template_code}-${year}-${seq}`;
   doc.status = "APPROVED";
   doc.approver_id = officer.id;
   doc.approver_name = officer.rp_name;
   doc.approver_badge = officer.badge;
   doc.approver_rank = officer.rank_name;
   doc.approved_at = new Date().toISOString();
+  doc._updated_at = Date.now();
   saveLocalStore(store);
+
+  if (!doc.discord_posted) {
+    postApprovedDocumentToDiscord(doc);
+  }
   return doc;
 }
 
 export function rejectDocumentLocal(docId, reason) {
   const officer = getCurrentOfficer();
   if (!officer) throw new Error("Autenticação necessária.");
-  const doc = store.documents.find(d => d.id === Number(docId));
+  const doc = store.documents.find(d => Number(d.id) === Number(docId));
   if (!doc) throw new Error("Document not found");
   if (!canApproveDocument(officer, doc)) {
     throw new Error("Auto-rejeição restrita ao High Command ou patente insuficiente.");
@@ -511,6 +1203,7 @@ export function rejectDocumentLocal(docId, reason) {
   doc.approver_badge = officer.badge;
   doc.approver_rank = officer.rank_name;
   doc.reject_reason = reason;
+  doc._updated_at = Date.now();
   saveLocalStore(store);
   return doc;
 }
@@ -518,11 +1211,12 @@ export function rejectDocumentLocal(docId, reason) {
 export function revokeDocumentLocal(docId, reason) {
   const officer = getCurrentOfficer();
   if (!officer || !officer.is_admin) throw new Error("Only Command Administrators can revoke documents");
-  const doc = store.documents.find(d => d.id === Number(docId));
+  const doc = store.documents.find(d => Number(d.id) === Number(docId));
   if (!doc) throw new Error("Document not found");
   doc.status = "REVOKED";
   doc.revoked_at = new Date().toISOString();
   doc.reject_reason = reason || "Revoked by Command Staff";
+  doc._updated_at = Date.now();
   saveLocalStore(store);
   return doc;
 }
@@ -539,7 +1233,8 @@ export function saveOfficerLocal(payload) {
       rank_id: rank.id,
       rank_name: rank.name,
       rank_level: rank.level,
-      is_admin: payload.is_admin ? 1 : 0
+      is_admin: payload.is_admin ? 1 : 0,
+      _updated_at: Date.now()
     });
   } else {
     const nextId = store.officers.reduce((m, o) => Math.max(m, o.id), 0) + 1;
@@ -553,7 +1248,8 @@ export function saveOfficerLocal(payload) {
       rank_id: rank.id,
       rank_name: rank.name,
       rank_level: rank.level,
-      is_admin: payload.is_admin ? 1 : 0
+      is_admin: payload.is_admin ? 1 : 0,
+      _updated_at: Date.now()
     });
   }
   saveLocalStore(store);
@@ -565,9 +1261,16 @@ export function saveRankLocal(rankId, name, level, discordRoleId) {
     rk.name = name;
     rk.level = Number(level);
     rk.discord_role_id = discordRoleId;
+    rk._updated_at = Date.now();
   } else {
     const nextId = store.ranks.reduce((m, r) => Math.max(m, r.id), 0) + 1;
-    store.ranks.push({ id: nextId, name, level: Number(level), discord_role_id: discordRoleId });
+    store.ranks.push({
+      id: nextId,
+      name,
+      level: Number(level),
+      discord_role_id: discordRoleId,
+      _updated_at: Date.now()
+    });
     store.ranks.sort((a, b) => a.level - b.level);
   }
   saveLocalStore(store);
@@ -576,9 +1279,14 @@ export function saveRankLocal(rankId, name, level, discordRoleId) {
 export function saveTemplateLocal(updatedTpl) {
   const idx = store.templates.findIndex(t => t.code === updatedTpl.code);
   if (idx >= 0) {
-    store.templates[idx] = { ...store.templates[idx], ...updatedTpl, version: (store.templates[idx].version || 1) + 1 };
+    store.templates[idx] = {
+      ...store.templates[idx],
+      ...updatedTpl,
+      version: (store.templates[idx].version || 1) + 1,
+      _updated_at: Date.now()
+    };
   } else {
-    store.templates.push({ ...updatedTpl, version: 1, active: 1 });
+    store.templates.push({ ...updatedTpl, version: 1, active: 1, _updated_at: Date.now() });
   }
   saveLocalStore(store);
 }

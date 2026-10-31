@@ -13,8 +13,9 @@ import {
   revokeDocumentLocal,
   saveOfficerLocal,
   saveRankLocal,
-  saveTemplateLocal
-} from "./api.js?v=4";
+  saveTemplateLocal,
+  pullSharedStore
+} from "./api.js?v=5";
 import {
   DOC_I18N,
   getLanguage,
@@ -23,7 +24,7 @@ import {
   setDocumentLanguage,
   t,
   resolveTemplateForLang
-} from "./i18n.js?v=4";
+} from "./i18n.js?v=5";
 
 function esc(str) {
   return String(str ?? "")
@@ -828,14 +829,16 @@ function renderComposer(container, codeParam, savedValues = null) {
 
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding-top:12px;border-top:1px solid var(--border);">
             <span style="font-size:12px;color:var(--muted);">
-              Channel: <strong>#upd-official-documents</strong>
+              Discord: <strong>#📜emitir-docs</strong> · <span style="color:#145a32;font-weight:600;">● Sincronizado em Tempo Real</span>
             </span>
             <div style="display:flex;flex-wrap:wrap;gap:8px;">
-              <button type="submit" class="btn ${canSelfApproveThis ? "btn-secondary" : "btn-primary"}">${esc(t("btnSubmitDraft"))}</button>
               ${
                 canSelfApproveThis
-                  ? `<button type="button" id="btn-issue-and-approve" class="btn btn-primary">✅ ${lang === "pt" ? "Emitir & Contra-Assinar Agora" : "Issue & Counter-Sign Now"}</button>`
-                  : ""
+                  ? `
+                    <button type="button" id="btn-submit-draft-only" class="btn btn-secondary">${esc(t("btnSubmitDraft"))}</button>
+                    <button type="submit" id="btn-issue-and-approve" class="btn btn-primary">✅ ${lang === "pt" ? "Emitir & Contra-Assinar Agora" : "Issue & Counter-Sign Now"}</button>
+                  `
+                  : `<button type="submit" class="btn btn-primary">${esc(t("btnSubmitDraft"))}</button>`
               }
             </div>
           </div>
@@ -899,16 +902,22 @@ function renderComposer(container, codeParam, savedValues = null) {
       });
       fieldValues._lang = docLang;
       const created = createDraftLocal(tpl.code, fieldValues);
-      selectedInspectDocId = created.id;
-      window.location.hash = "#/aprovacoes";
+      if (canSelfApproveThis) {
+        const approved = approveDocumentLocal(created.id);
+        selectedInspectDocId = approved.id;
+        window.location.hash = "#/";
+      } else {
+        selectedInspectDocId = created.id;
+        window.location.hash = "#/aprovacoes";
+      }
     } catch (err) {
       alert(err.message);
     }
   });
 
-  const issueAndApproveBtn = document.getElementById("btn-issue-and-approve");
-  if (issueAndApproveBtn) {
-    issueAndApproveBtn.addEventListener("click", () => {
+  const draftOnlyBtn = document.getElementById("btn-submit-draft-only");
+  if (draftOnlyBtn) {
+    draftOnlyBtn.addEventListener("click", () => {
       const form = document.getElementById("composer-form");
       if (form && !form.reportValidity()) return;
       try {
@@ -917,9 +926,8 @@ function renderComposer(container, codeParam, savedValues = null) {
         });
         fieldValues._lang = docLang;
         const created = createDraftLocal(tpl.code, fieldValues);
-        const approved = approveDocumentLocal(created.id);
-        selectedInspectDocId = approved.id;
-        window.location.hash = "#/";
+        selectedInspectDocId = created.id;
+        window.location.hash = "#/aprovacoes";
       } catch (err) {
         alert(err.message);
       }
@@ -1480,6 +1488,24 @@ export function renderApp() {
 }
 
 window.addEventListener("hashchange", renderApp);
+window.addEventListener("upd:store-updated", e => {
+  const src = e.detail?.source;
+  if (src !== "cloud" && src !== "tab") return;
+  if (!getCurrentOfficer()) return;
+
+  const activeEl = document.activeElement;
+  const isTyping =
+    activeEl &&
+    (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT");
+  const routeBase = (window.location.hash || "#/").split("?")[0];
+
+  if (isTyping || routeBase.startsWith("#/emitir") || routeBase === "#/modelos") {
+    renderSidebar();
+  } else {
+    renderApp();
+  }
+});
+
 window.addEventListener("DOMContentLoaded", async () => {
   const menuBtn = document.getElementById("mobile-menu-btn");
   if (menuBtn) {
@@ -1488,6 +1514,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
   try {
+    await pullSharedStore(true);
     await handleDiscordOAuthCallbackIfPresent();
   } catch (err) {
     authErrorMessage = err.message;
