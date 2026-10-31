@@ -935,7 +935,7 @@ function renderApprovals(container) {
                         <td class="num">
                           <div style="display:inline-flex;gap:6px;">
                             <button class="btn btn-secondary" data-select-pending="${d.id}">${esc(t("btnViewDoc"))}</button>
-                            <button class="btn btn-primary" data-approve-id="${d.id}" ${!allowed ? "disabled" : ""} title="${isSelf ? "Self-approval prohibited" : ""}">
+                            <button class="btn btn-primary" data-approve-id="${d.id}" ${!allowed ? "disabled" : ""} title="${!allowed && isSelf ? "Autoaprovação restrita ao High Command" : ""}">
                               ${esc(t("btnApprove"))}
                             </button>
                             <button class="btn btn-danger" data-reject-id="${d.id}" ${!allowed ? "disabled" : ""}>

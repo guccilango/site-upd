@@ -412,9 +412,15 @@ export function canIssueTemplate(officer, template) {
   return (officer.rank_level || 0) >= template.min_issue_level;
 }
 
+export function isHighCommand(officer) {
+  if (!officer || officer.status !== "active") return false;
+  return Boolean(officer.is_admin) || (Number(officer.rank_level) || 0) >= 11;
+}
+
 export function canApproveDocument(officer, doc) {
   if (!officer || officer.status !== "active") return false;
-  if (Number(officer.id) === Number(doc.issuer_id)) return false;
+  const isSelf = Number(officer.id) === Number(doc.issuer_id);
+  if (isSelf && !isHighCommand(officer)) return false;
   if (officer.is_admin) return true;
   return (officer.rank_level || 0) >= (doc.min_approve_level || 5);
 }
@@ -465,7 +471,7 @@ export function approveDocumentLocal(docId) {
   const doc = store.documents.find(d => d.id === Number(docId));
   if (!doc) throw new Error("Document not found");
   if (!canApproveDocument(officer, doc)) {
-    throw new Error("Autoaprovação bloqueada ou patente abaixo do mínimo exigido.");
+    throw new Error("Autoaprovação restrita ao High Command ou patente abaixo do mínimo exigido.");
   }
   const year = new Date().getFullYear();
   const sameCode = store.documents.filter(d => d.template_code === doc.template_code && d.control_no);
@@ -487,7 +493,7 @@ export function rejectDocumentLocal(docId, reason) {
   const doc = store.documents.find(d => d.id === Number(docId));
   if (!doc) throw new Error("Document not found");
   if (!canApproveDocument(officer, doc)) {
-    throw new Error("Auto-rejeição bloqueada ou patente insuficiente.");
+    throw new Error("Auto-rejeição restrita ao High Command ou patente insuficiente.");
   }
   doc.status = "REJECTED";
   doc.approver_id = officer.id;
