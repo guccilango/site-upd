@@ -1,4 +1,4 @@
-// UPD Records API Client + Deterministic Seed State (works connected to FastAPI or standalone on GitHub Pages)
+// UPD Records API Client + Live Sync with FastAPI Backend
 
 const INITIAL_RANKS = [
   { id: 1, name: "Cadet", level: 1, discord_role_id: "120001000000000001" },
@@ -17,12 +17,9 @@ const INITIAL_RANKS = [
   { id: 14, name: "Chief of Police", level: 14, discord_role_id: "120001000000000014" }
 ];
 
+// Fallback de administrador para o dono caso não haja conexão à API ainda
 const INITIAL_OFFICERS = [
-  { id: 1, discord_id: "381920194810294001", rp_name: "Alexander Hawthorne", badge: "102", division: "Command Staff", status: "active", rank_id: 11, rank_name: "Commander", rank_level: 11, is_admin: 1 },
-  { id: 2, discord_id: "381920194810294002", rp_name: "Jonathan Vance", badge: "4109", division: "Robbery-Homicide Division", status: "active", rank_id: 4, rank_name: "Officer III", rank_level: 4, is_admin: 0 },
-  { id: 3, discord_id: "381920194810294003", rp_name: "Elena Rostova", badge: "2084", division: "Firearms Training Unit", status: "active", rank_id: 6, rank_name: "Sergeant I", rank_level: 6, is_admin: 0 },
-  { id: 4, discord_id: "381920194810294004", rp_name: "Marcus Holloway", badge: "3115", division: "Metropolitan SWAT", status: "active", rank_id: 8, rank_name: "Lieutenant I", rank_level: 8, is_admin: 0 },
-  { id: 5, discord_id: "381920194810294005", rp_name: "Caleb Mercer", badge: "5219", division: "Patrol Division", status: "pending", rank_id: 2, rank_name: "Officer I", rank_level: 2, is_admin: 0 }
+  { id: 1, discord_id: "395759705789562881", rp_name: "Gucci Lango", badge: "01", division: "Chief of Police / Command", status: "active", rank_id: 14, rank_name: "Chief of Police", rank_level: 14, is_admin: 1 }
 ];
 
 const INITIAL_TEMPLATES = [
@@ -102,11 +99,11 @@ const INITIAL_TEMPLATES = [
     title: "REQUEST FOR JUDICIAL & EXECUTIVE AUTHORIZATION\nSPECIAL TACTICAL & COMMUNITY STABILIZATION OPERATION (SMEAC)",
     court_header: "BEFORE THE DEPARTMENT OF JUSTICE & SUPERIOR COURT\nSTATE OF SAN ANDREAS · COUNTY OF LOS SANTOS",
     fields: [
-      { key: "operation_name", label: "Operation Codename & Designated Zone", type: "text", required: true, max_length: 200, placeholder: "OPERATION IRON SHIELD — Davis / Grove Street Cul-de-Sac Sector" },
+      { key: "operation_name", label: "Operation Codename & Designated Zone", type: "text", required: true, max_length: 200, placeholder: "OPERATION IRON SHIELD — Davis / Grove Street Sector" },
       { key: "operational_window", label: "Operational Window (Start & End Date/Time)", type: "text", required: true, max_length: 150, placeholder: "November 2, 2026 (0600 hrs) through November 5, 2026 (2200 hrs)" },
       { key: "situation", label: "1. SITUATION (Threat Intelligence & Armed Group Activity)", type: "textarea", required: true, max_length: 1500, placeholder: "Over the preceding 14 days, the designated sector has experienced 11 confirmed Class-3 automatic weapons discharges..." },
       { key: "mission", label: "2. MISSION STATEMENT", type: "textarea", required: true, max_length: 800, placeholder: "Establish continuous law enforcement presence, execute high-risk felony warrants, and restore civil order." },
-      { key: "execution", label: "3. EXECUTION & TACTICAL PHASES (Units, Perimeter & Checkpoints)", type: "textarea", required: true, max_length: 1500, placeholder: "Phase I: Perimeter containment by UPD Patrol & Air Support. Phase II: Tactical entry by SWAT. Phase III: Stabilization patrols." },
+      { key: "execution", label: "3. EXECUTION & TACTICAL PHASES (Units, Perimeter & Checkpoints)", type: "textarea", required: true, max_length: 1500, placeholder: "Phase I: Perimeter containment. Phase II: SWAT warrant service. Phase III: High-visibility foot patrols." },
       { key: "roe_safeguards", label: "4. RULES OF ENGAGEMENT & CONSTITUTIONAL SAFEGUARDS", type: "textarea", required: true, max_length: 1000, placeholder: "Strict adherence to UPD Use-of-Force Policy (Graham v. Connor). Body-worn cameras mandatory on all personnel." }
     ],
     body: "<b>OPERATION DESIGNATION:</b> {operation_name}\n<b>OPERATIONAL WINDOW:</b> {operational_window}\n<b>FILING COMMAND OFFICER:</b> {issuer_name} ({issuer_rank}, Badge #{issuer_badge})\n\n<b>I. SITUATION & INTELLIGENCE ASSESSMENT</b>\n{situation}\n\n<b>II. MISSION</b>\n{mission}\n\n<b>III. EXECUTION PLAN (PHASES & DEPLOYED UNITS)</b>\n{execution}\n\n<b>IV. RULES OF ENGAGEMENT & SAFEGUARDS</b>\n{roe_safeguards}"
@@ -153,124 +150,10 @@ const INITIAL_TEMPLATES = [
   }
 ];
 
-const INITIAL_DOCUMENTS = [
-  {
-    id: 101,
-    control_no: "UPD-SW-2026-0001",
-    template_code: "SW",
-    template_name: "Affidavit and Application for Search Warrant",
-    category: "doj",
-    min_approve_level: 11,
-    status: "APPROVED",
-    issuer_id: 2,
-    issuer_name: "Jonathan Vance",
-    issuer_badge: "4109",
-    issuer_rank: "Officer III",
-    approver_id: 1,
-    approver_name: "Alexander Hawthorne",
-    approver_badge: "102",
-    approver_rank: "Commander",
-    created_at: "2026-10-29T18:10:00Z",
-    approved_at: "2026-10-29T19:05:00Z",
-    png_url: "https://api.fivemanage.com/images/upd-sw-2026-0001.png",
-    data_json: {
-      case_no: "26-CR-00418",
-      target_subject: "Marcus Vance, DOB 04/12/1994",
-      target_premises: "1428 Forum Drive, Apt. 3B, Strawberry, Los Santos",
-      statutes_violated: "Penal Code §§ 187(a), 29800(a)(1)",
-      items_to_seize: "9mm Luger firearms, spent casings, cellular devices, and indicia of occupancy.",
-      probable_cause: "Ballistic casing match to NIBIN record #26-8841 and eyewitness identification placing subject entering Apt. 3B immediately after the shooting.",
-      night_service: "Standard Daytime Service (0700-2200 hrs)"
-    }
-  },
-  {
-    id: 102,
-    control_no: "UPD-FQ-2026-0001",
-    template_code: "FQ",
-    template_name: "Certificate of Firearms Qualification & UPD Weapon Authorization",
-    category: "internal",
-    min_approve_level: 5,
-    status: "APPROVED",
-    issuer_id: 3,
-    issuer_name: "Elena Rostova",
-    issuer_badge: "2084",
-    issuer_rank: "Sergeant I",
-    approver_id: 4,
-    approver_name: "Marcus Holloway",
-    approver_badge: "3115",
-    approver_rank: "Lieutenant I",
-    created_at: "2026-10-30T14:20:00Z",
-    approved_at: "2026-10-30T15:00:00Z",
-    png_url: "https://api.fivemanage.com/images/upd-fq-2026-0001.png",
-    data_json: {
-      holder_name: "Lucas Sterling",
-      holder_id: "SA-ID #30491",
-      doj_permit_ref: "DOJ-CCW-2026-0812",
-      course_score: "POST Combat & Legal Deadly Force Qualification — Score: 96/100 (QUALIFIED)",
-      weapon_details: "Glock 17 Gen 5 · 9x19mm Parabellum · Serial No. UPD-ARM-88412",
-      conditions: "Weapon remains the exclusive property of the Unified Police Department. Holder is certified in safe handling, retention, and statutory use-of-force limitations."
-    }
-  },
-  {
-    id: 103,
-    control_no: null,
-    template_code: "CO",
-    template_name: "Application for Court Order — Disclosure of Records (18 U.S.C. § 2703(d))",
-    category: "doj",
-    min_approve_level: 11,
-    status: "PENDING",
-    issuer_id: 2,
-    issuer_name: "Jonathan Vance",
-    issuer_badge: "4109",
-    issuer_rank: "Officer III",
-    approver_id: null,
-    approver_name: null,
-    approver_badge: null,
-    approver_rank: "",
-    created_at: "2026-10-31T01:15:00Z",
-    approved_at: null,
-    png_url: null,
-    data_json: {
-      case_no: "26-INV-00109",
-      target_account: "Account #4401-9982 (Maze Bank) / Tel. (555) 019-4821 — Viktor Kovalenko",
-      custodian_entity: "Maze Bank of Los Santos & Whiz Wireless",
-      records_scope: "Call detail records (CDRs), cell-site location information (CSLI), and wire logs from 09/01/2026 to present.",
-      articulable_facts: "Financial intelligence indicates three structured wire transfers totaling $145,000 immediately preceding seized narcotics shipments at the Port of Los Santos.",
-      nondisclosure_period: "90-Day Non-Disclosure Order (18 U.S.C. § 2705(b))"
-    }
-  },
-  {
-    id: 104,
-    control_no: null,
-    template_code: "SO",
-    template_name: "Request for Authorization — Community Stabilization Operation (SMEAC)",
-    category: "doj",
-    min_approve_level: 11,
-    status: "PENDING",
-    issuer_id: 4,
-    issuer_name: "Marcus Holloway",
-    issuer_badge: "3115",
-    issuer_rank: "Lieutenant I",
-    approver_id: null,
-    approver_name: null,
-    approver_badge: null,
-    approver_rank: "",
-    created_at: "2026-10-31T02:05:00Z",
-    approved_at: null,
-    png_url: null,
-    data_json: {
-      operation_name: "OPERATION IRON SHIELD — Davis / Grove Street Sector",
-      operational_window: "November 2, 2026 (0600 hrs) through November 5, 2026 (2200 hrs)",
-      situation: "11 confirmed Class-3 automatic weapons discharges and armed barricades recorded in the last 14 days.",
-      mission: "Execute 6 high-risk felony arrest warrants, interdict illegal firearms, and restore civil order.",
-      execution: "Phase I: Perimeter containment. Phase II: SWAT warrant service. Phase III: High-visibility foot patrols.",
-      roe_safeguards: "Graham v. Connor compliance; mandatory body-worn cameras; EMS staged at Carson Ave."
-    }
-  }
-];
+const INITIAL_DOCUMENTS = [];
 
 function loadLocalStore() {
-  const raw = localStorage.getItem("upd_portal_store_v1");
+  const raw = localStorage.getItem("upd_portal_store_v2");
   if (raw) {
     try { return JSON.parse(raw); } catch (_) {}
   }
@@ -281,12 +164,12 @@ function loadLocalStore() {
     documents: INITIAL_DOCUMENTS,
     activeOfficerId: 1
   };
-  localStorage.setItem("upd_portal_store_v1", JSON.stringify(initial));
+  localStorage.setItem("upd_portal_store_v2", JSON.stringify(initial));
   return initial;
 }
 
 function saveLocalStore(store) {
-  localStorage.setItem("upd_portal_store_v1", JSON.stringify(store));
+  localStorage.setItem("upd_portal_store_v2", JSON.stringify(store));
 }
 
 export const store = loadLocalStore();
@@ -321,12 +204,7 @@ export async function apiRequest(path, options = {}) {
 }
 
 export function getCurrentOfficer() {
-  return store.officers.find(o => o.id === store.activeOfficerId) || store.officers[0];
-}
-
-export function setActiveDemoOfficer(officerId) {
-  store.activeOfficerId = Number(officerId);
-  saveLocalStore(store);
+  return store.officers[0];
 }
 
 export function canIssueTemplate(officer, template) {
@@ -337,7 +215,7 @@ export function canIssueTemplate(officer, template) {
 
 export function canApproveDocument(officer, doc) {
   if (!officer || officer.status !== "active") return false;
-  if (Number(officer.id) === Number(doc.issuer_id)) return false; // Self-approval strictly forbidden
+  if (Number(officer.id) === Number(doc.issuer_id)) return false; // Auto-aprovação estritamente bloqueada
   if (officer.is_admin) return true;
   return (officer.rank_level || 0) >= (doc.min_approve_level || 5);
 }
@@ -397,7 +275,6 @@ export function approveDocumentLocal(docId) {
   doc.approver_badge = officer.badge;
   doc.approver_rank = officer.rank_name;
   doc.approved_at = new Date().toISOString();
-  doc.png_url = `https://api.fivemanage.com/images/${doc.control_no.toLowerCase()}.png`;
   saveLocalStore(store);
   return doc;
 }

@@ -239,17 +239,6 @@ function renderSidebar() {
         </div>
         <div class="officer-rank">${esc(officer.rank_name)} · Lvl ${officer.rank_level}${officer.is_admin ? " · Admin" : ""}</div>
         <div class="officer-sig-preview" title="Auto-generated cursive signature">${esc(officer.rp_name)}</div>
-        <div style="margin-top:8px;">
-          <label for="switcher-select" style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px;">Active Session / Role Simulation</label>
-          <select id="switcher-select" class="select" style="height:28px;font-size:12px;padding:2px 6px;">
-            ${store.officers
-              .map(
-                o =>
-                  `<option value="${o.id}" ${o.id === officer.id ? "selected" : ""}>${esc(o.rank_name)} ${esc(o.rp_name)} (${o.status})</option>`
-              )
-              .join("")}
-          </select>
-        </div>
       </div>
       <a class="btn btn-secondary" href="${window.UPD_CONFIG.API_URL}/api/auth/login" style="justify-content:center;">
         Connect Discord OAuth2
@@ -264,10 +253,8 @@ function renderSidebar() {
     });
   });
 
-  document.getElementById("switcher-select").addEventListener("change", e => {
-    setActiveDemoOfficer(e.target.value);
-    renderApp();
-  });
+    // Seleção de perfil de teste removida
+  }
 }
 
 // ─── View 1: Overview & Operational Ledger ────────────────────────────────────
