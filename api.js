@@ -833,10 +833,23 @@ export async function renderDocumentSheetCanvas(doc) {
   ctx.fillStyle = "#111e38";
   ctx.fillRect(padX, footY, canvas.width - padX * 2, 1.5);
 
+  const cfgUrl = window.UPD_CONFIG?.SITE_URL;
+  let siteBase = "";
+  if (cfgUrl && typeof cfgUrl === "string" && cfgUrl.trim()) {
+    siteBase = cfgUrl.trim().replace(/\/+$/, "");
+  } else if (typeof window !== "undefined" && window.location?.origin && window.location.origin !== "null") {
+    const p = (window.location.pathname || "").replace(/\/[^/]*$/, "");
+    siteBase = `${window.location.origin}${p}`.replace(/\/+$/, "");
+  } else {
+    siteBase = "https://guccilango.github.io/site-upd";
+  }
+  const verifyFullUrl = `${siteBase}/verify.html?n=${encodeURIComponent(ctrl)}`;
+  const verifyLabel = isPt ? "VERIFICAR NO REGISTRO:" : "VERIFY REGISTRY:";
+
   ctx.textAlign = "left";
   ctx.fillStyle = "#525866";
-  ctx.font = "400 14px 'Public Sans', Arial, sans-serif";
-  ctx.fillText(chrome.footerVerify.replace("{ctrl}", ctrl), padX, footY + 24);
+  ctx.font = "400 13px 'Public Sans', Arial, sans-serif";
+  ctx.fillText(`${verifyLabel} ${verifyFullUrl}`, padX, footY + 24);
 
   ctx.textAlign = "right";
   ctx.fillText(chrome.footerSensitive, canvas.width - padX, footY + 24);
@@ -1550,6 +1563,11 @@ export function verifyControlNoLocal(controlNo) {
   const norm = (controlNo || "").trim().toUpperCase();
   const doc = store.documents.find(d => (d.control_no || "").toUpperCase() === norm);
   if (!doc) return null;
+  const tpl = store.templates.find(t => t.code === doc.template_code) || {
+    code: doc.template_code,
+    name: doc.template_name,
+    category: doc.category
+  };
   return {
     control_no: doc.control_no,
     template_code: doc.template_code,
@@ -1562,6 +1580,9 @@ export function verifyControlNoLocal(controlNo) {
     png_url: doc.png_url || null,
     lang: doc.lang || doc.data_json?._lang || "pt",
     revoked_at: doc.revoked_at || null,
-    revocation_note: doc.status === "REVOKED" ? doc.reject_reason : null
+    revocation_note: doc.status === "REVOKED" ? doc.reject_reason : null,
+    doc,
+    template: tpl,
+    data_json: doc.data_json || {}
   };
 }

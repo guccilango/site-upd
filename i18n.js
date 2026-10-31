@@ -286,7 +286,8 @@ export const DOC_I18N = {
     sigReqCommander: "PATENTE EXIGIDA: COMMANDER+ (NÍVEL 11+)",
     sigReqCorporal: "PATENTE EXIGIDA: CORPORAL+ (NÍVEL 5+)",
     sigCountersigned: "Contra-Assinado: {date}",
-    footerVerify: "VERIFICAR NO REGISTRO: verify.html?n={ctrl}",
+    footerVerifyLabel: "VERIFICAR NO REGISTRO:",
+    footerVerify: "VERIFICAR NO REGISTRO: {url}",
     footerSensitive: "USO RESTRITO POLICIAL · Página 1 de 1",
   },
   en: {
@@ -307,7 +308,8 @@ export const DOC_I18N = {
     sigReqCommander: "REQUIRED: COMMANDER+ (LVL 11+)",
     sigReqCorporal: "REQUIRED: CORPORAL+ (LVL 5+)",
     sigCountersigned: "Counter-Signed: {date}",
-    footerVerify: "VERIFY REGISTRY: verify.html?n={ctrl}",
+    footerVerifyLabel: "VERIFY REGISTRY:",
+    footerVerify: "VERIFY REGISTRY: {url}",
     footerSensitive: "LAW ENFORCEMENT SENSITIVE · Page 1 of 1",
   }
 };
