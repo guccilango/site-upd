@@ -156,7 +156,6 @@ export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
 // ─── Login Screen (Mandatory Discord / Owner Auth) ────────────────────────────
 
 let authErrorMessage = "";
-let showRecoveryForm = false;
 
 function maskId(id) {
   const s = String(id || "");
@@ -226,58 +225,17 @@ function renderLoginScreen() {
         : ""
     }
 
-    <div style="max-width:520px;margin:28px auto 0;">
-      <section class="panel" style="padding:24px;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-          <img src="./assets/opacidade2.png" alt="UPD Crest" style="width:44px;height:44px;" />
-          <div>
-            <h2 class="panel-title">${esc(t("loginAuthTitle"))}</h2>
-            <div class="panel-sub">${esc(t("loginAuthSub"))}</div>
-          </div>
-        </div>
-        <p style="margin:0 0 18px;color:var(--muted);font-size:13px;line-height:1.55;">
+    <div style="max-width:500px;margin:36px auto 0;">
+      <section class="panel" style="padding:28px 24px;text-align:center;">
+        <img src="./assets/opacidade2.png" alt="UPD Crest" style="width:68px;height:68px;margin:0 auto 14px;" />
+        <h2 class="panel-title" style="font-size:18px;margin-bottom:6px;">${esc(t("loginAuthTitle"))}</h2>
+        <div class="panel-sub" style="margin-bottom:16px;">${esc(t("loginAuthSub"))}</div>
+        <p style="margin:0 auto 22px;color:var(--muted);font-size:13.5px;line-height:1.55;max-width:420px;">
           ${esc(t("loginAuthDesc"))}
         </p>
-        <a class="btn btn-primary" href="${esc(getDiscordOAuthUrl())}" style="width:100%;justify-content:center;height:38px;font-size:14px;">
+        <a class="btn btn-primary" href="${esc(getDiscordOAuthUrl())}" style="width:100%;justify-content:center;height:42px;font-size:14px;font-weight:600;">
           ${esc(t("btnDiscordLogin"))}
         </a>
-
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;color:var(--muted);">${esc(t("authorizedStaff"))}</span>
-          <button type="button" class="btn btn-ghost" id="btn-toggle-recovery" style="font-size:12px;height:26px;padding:0 8px;">
-            ${showRecoveryForm ? esc(t("hideRecoveryBtn")) : esc(t("recoveryLoginBtn"))}
-          </button>
-        </div>
-
-        ${
-          showRecoveryForm
-            ? `
-          <form id="owner-login-form" style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);">
-            <div class="field-group">
-              <label class="field-label" for="login-discord-id">${esc(t("recoveryCredLabel"))}</label>
-              <input class="input mono" id="login-discord-id" name="discord_id" placeholder="${esc(t("recoveryCredPlaceholder"))}" autocomplete="off" required />
-            </div>
-            <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">
-              <div class="field-group">
-                <label class="field-label" for="login-rp-name">${esc(t("recoverySigLabel"))}</label>
-                <input class="input" id="login-rp-name" name="rp_name" placeholder="Officer Full Name" autocomplete="off" required />
-              </div>
-              <div class="field-group">
-                <label class="field-label" for="login-badge">${esc(t("recoveryBadgeLabel"))}</label>
-                <input class="input mono" id="login-badge" name="badge" placeholder="01" autocomplete="off" required />
-              </div>
-            </div>
-            <div class="field-group">
-              <label class="field-label" for="login-access-key">${esc(t("recoveryKeyLabel"))}</label>
-              <input class="input mono" id="login-access-key" name="access_key" type="password" placeholder="${esc(t("recoveryKeyPlaceholder"))}" autocomplete="off" required />
-            </div>
-            <button type="submit" class="btn btn-secondary" style="width:100%;justify-content:center;">
-              ${esc(t("recoverySubmitBtn"))}
-            </button>
-          </form>
-        `
-            : ""
-        }
       </section>
     </div>
   `;
@@ -288,32 +246,6 @@ function renderLoginScreen() {
       renderApp();
     });
   });
-
-  document.getElementById("btn-toggle-recovery").addEventListener("click", () => {
-    showRecoveryForm = !showRecoveryForm;
-    renderLoginScreen();
-  });
-
-  const form = document.getElementById("owner-login-form");
-  if (form) {
-    form.addEventListener("submit", e => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      try {
-        authErrorMessage = "";
-        loginOwnerDirect(
-          fd.get("discord_id"),
-          fd.get("access_key"),
-          fd.get("rp_name"),
-          fd.get("badge")
-        );
-        renderApp();
-      } catch (err) {
-        authErrorMessage = err.message;
-        renderLoginScreen();
-      }
-    });
-  }
 }
 
 // ─── Authenticated Sidebar & Views ────────────────────────────────────────────
