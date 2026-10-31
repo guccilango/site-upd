@@ -451,7 +451,8 @@ export function createDraftLocal(templateCode, fieldValues) {
     created_at: new Date().toISOString(),
     approved_at: null,
     png_url: null,
-    data_json: { ...fieldValues }
+    data_json: { ...fieldValues },
+    lang: fieldValues._lang || "pt"
   };
   store.documents.unshift(doc);
   saveLocalStore(store);

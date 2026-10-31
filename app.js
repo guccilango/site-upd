@@ -15,6 +15,13 @@ import {
   saveRankLocal,
   saveTemplateLocal
 } from "./api.js";
+import {
+  DOC_I18N,
+  getLanguage,
+  setLanguage,
+  t,
+  resolveTemplateForLang
+} from "./i18n.js";
 
 function esc(str) {
   return String(str ?? "")
@@ -26,10 +33,10 @@ function esc(str) {
 
 function statusPill(status) {
   const s = (status || "PENDING").toUpperCase();
-  if (s === "APPROVED") return `<span class="pill pill-approved">Approved</span>`;
-  if (s === "PENDING") return `<span class="pill pill-pending">Pending approval</span>`;
-  if (s === "REJECTED") return `<span class="pill pill-rejected">Rejected</span>`;
-  if (s === "REVOKED") return `<span class="pill pill-revoked">Revoked</span>`;
+  if (s === "APPROVED") return `<span class="pill pill-approved">${esc(t("statusApproved"))}</span>`;
+  if (s === "PENDING") return `<span class="pill pill-pending">${esc(t("statusPending"))}</span>`;
+  if (s === "REJECTED") return `<span class="pill pill-rejected">${esc(t("statusRejected"))}</span>`;
+  if (s === "REVOKED") return `<span class="pill pill-revoked">${esc(t("statusRevoked"))}</span>`;
   return `<span class="pill pill-neutral">${esc(s)}</span>`;
 }
 
@@ -49,33 +56,38 @@ export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
   const status = docMeta.status || "PENDING";
   const ctrl = docMeta.control_no || "DRAFT-PREVIEW";
   const dateStr = (docMeta.approved_at || docMeta.created_at || new Date().toISOString()).slice(0, 10);
+
+  const docLang = docMeta.lang || fieldValues._lang || getLanguage() || "pt";
+  const chrome = DOC_I18N[docLang] || DOC_I18N.pt;
+  const resolvedTpl = resolveTemplateForLang(template, docLang);
+
   const vars = {
     ...fieldValues,
     issuer_name: officer.rp_name,
     issuer_badge: officer.badge,
     issuer_rank: officer.rank_name,
-    issuer_division: officer.division || "Command Division"
+    issuer_division: officer.division || (docLang === "pt" ? "Divisão de Patrulha" : "Command Division")
   };
-  const bodyHtml = renderFilledBodyHtml(template.body, vars);
-  const reqRankLabel = template.category === "doj" ? "COMMANDER+ (LVL 11+)" : "CORPORAL+ (LVL 5+)";
+  const bodyHtml = renderFilledBodyHtml(resolvedTpl.body, vars);
+  const reqRankLabel = resolvedTpl.category === "doj" ? chrome.sigReqCommander : chrome.sigReqCorporal;
 
   const approverBlock =
     status === "APPROVED" && docMeta.approver_name
       ? `
-        <div class="sheet-sig-role">APPROVING COMMAND AUTHORITY</div>
+        <div class="sheet-sig-role">${esc(chrome.sigApproverRole)}</div>
         <div class="sheet-sig-cursive">${esc(docMeta.approver_name)}</div>
         <div class="sheet-sig-line"></div>
         <div class="sheet-sig-name">${esc(docMeta.approver_name.toUpperCase())}</div>
         <div class="sheet-sig-meta">${esc(docMeta.approver_rank)} · Badge #${esc(docMeta.approver_badge)}</div>
-        <div class="sheet-sig-meta">Counter-Signed: ${esc(dateStr)}</div>
+        <div class="sheet-sig-meta">${esc(chrome.sigCountersigned.replace("{date}", dateStr))}</div>
       `
       : `
-        <div class="sheet-sig-role">APPROVING COMMAND AUTHORITY</div>
+        <div class="sheet-sig-role">${esc(chrome.sigApproverRole)}</div>
         <div style="height:28px;display:flex;align-items:center;justify-content:center;font-family:var(--font);font-size:10px;font-weight:700;color:#9e1b1b;">
-          [ AWAITING COUNTER-SIGNATURE ]
+          ${esc(chrome.sigAwaiting)}
         </div>
         <div class="sheet-sig-line"></div>
-        <div class="sheet-sig-name">REQUIRED: ${reqRankLabel}</div>
+        <div class="sheet-sig-name">${esc(reqRankLabel)}</div>
         <div class="sheet-sig-meta">Unified Police Department</div>
       `;
 
@@ -83,30 +95,30 @@ export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
     <div class="us-letter-sheet" data-ui="us-letter-preview">
       <div class="us-letter-inner">
         <img class="sheet-watermark" src="./assets/opacidade2.png" alt="UPD Watermark" />
-        ${status !== "APPROVED" ? `<div class="sheet-draft-stamp">${status === "PENDING" ? "DRAFT — PENDING APPROVAL" : esc(status)}</div>` : ""}
+        ${status !== "APPROVED" ? `<div class="sheet-draft-stamp">${status === "PENDING" ? esc(chrome.stampDraft) : esc(status)}</div>` : ""}
 
         <div class="sheet-content">
           <div class="sheet-masthead">
             <div class="sheet-masthead-left">
               <img src="./assets/opacidade2.png" alt="UPD Crest" />
               <div>
-                <div class="sheet-dept-title">UNIFIED POLICE DEPARTMENT</div>
-                <div class="sheet-dept-sub">OFFICE OF THE CHIEF OF POLICE · HEADQUARTERS</div>
-                <div class="sheet-dept-juris">State of San Andreas · County of Los Santos</div>
+                <div class="sheet-dept-title">${esc(chrome.deptTitle)}</div>
+                <div class="sheet-dept-sub">${esc(chrome.deptSub)}</div>
+                <div class="sheet-dept-juris">${esc(chrome.deptJuris)}</div>
               </div>
             </div>
             <div class="sheet-masthead-right">
-              <div>CONTROL NO.: <strong class="mono">${esc(ctrl)}</strong></div>
-              <div>DATE OF RECORD: <strong class="mono">${esc(dateStr)}</strong></div>
-              <div>SERIES: <strong>${template.category === "doj" ? "DOJ JUDICIAL FILING" : "INTERNAL RECORD"}</strong></div>
-              <div>STATUS: <strong>${esc(status)}</strong></div>
+              <div>${esc(chrome.ctrlNoLabel)} <strong class="mono">${esc(ctrl)}</strong></div>
+              <div>${esc(chrome.dateLabel)} <strong class="mono">${esc(dateStr)}</strong></div>
+              <div>${esc(chrome.seriesLabel)} <strong>${resolvedTpl.category === "doj" ? esc(chrome.seriesDoj) : esc(chrome.seriesInternal)}</strong></div>
+              <div>${esc(chrome.statusLabel)} <strong>${esc(status === "APPROVED" ? (docLang === "pt" ? "APROVADO" : "APPROVED") : status)}</strong></div>
             </div>
           </div>
           <div class="sheet-gold-rule"></div>
 
           <div class="sheet-caption-box">
-            <div class="sheet-court-line">${esc(template.court_header || "UNIFIED POLICE DEPARTMENT")}</div>
-            <div class="sheet-doc-title">${esc(template.title || template.name)}</div>
+            <div class="sheet-court-line">${esc(resolvedTpl.court_header || "UNIFIED POLICE DEPARTMENT")}</div>
+            <div class="sheet-doc-title">${esc(resolvedTpl.title || resolvedTpl.name)}</div>
           </div>
 
           <div class="sheet-body-text">${bodyHtml}</div>
@@ -115,7 +127,7 @@ export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
         <div>
           <div class="sheet-sig-box">
             <div>
-              <div class="sheet-sig-role">SUBMITTING / AFFIANT OFFICER</div>
+              <div class="sheet-sig-role">${esc(chrome.sigIssuerRole)}</div>
               <div class="sheet-sig-cursive">${esc(officer.rp_name)}</div>
               <div class="sheet-sig-line"></div>
               <div class="sheet-sig-name">${esc(officer.rp_name.toUpperCase())}</div>
@@ -124,7 +136,7 @@ export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
             </div>
             <div class="sheet-seal-col">
               <img src="./assets/selo.png" alt="Official Seal" />
-              <div class="sheet-seal-caption">OFFICIAL SEAL · AUTHENTICATED</div>
+              <div class="sheet-seal-caption">${esc(chrome.sealText)}</div>
             </div>
             <div>
               ${approverBlock}
@@ -132,8 +144,8 @@ export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
           </div>
 
           <div class="sheet-footer-bar">
-            <span>VERIFY REGISTRY: <strong>verify.html?n=${esc(ctrl)}</strong></span>
-            <span>LAW ENFORCEMENT SENSITIVE · Page 1 of 1</span>
+            <span>${esc(chrome.footerVerify.replace("{ctrl}", ctrl))}</span>
+            <span>${esc(chrome.footerSensitive)}</span>
           </div>
         </div>
       </div>
@@ -155,24 +167,30 @@ function maskId(id) {
 function renderLoginScreen() {
   const sidebar = document.getElementById("sidebar-nav");
   const main = document.getElementById("main-canvas");
+  const lang = getLanguage();
 
   sidebar.innerHTML = `
     <div>
-      <div class="brand-switcher">
-        <img class="brand-crest" src="./assets/opacidade2.png" alt="UPD Crest" />
-        <div class="brand-meta">
-          <div class="brand-title">UPD Records Bureau</div>
-          <div class="brand-sub">Los Santos · Restricted Portal</div>
+      <div class="brand-switcher" style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <img class="brand-crest" src="./assets/opacidade2.png" alt="UPD Crest" />
+          <div class="brand-meta">
+            <div class="brand-title">${esc(t("brandTitle"))}</div>
+            <div class="brand-sub">${esc(t("restrictedPortal"))}</div>
+          </div>
         </div>
+        <button class="btn btn-ghost btn-lang-toggle" type="button" style="padding:4px 8px;font-size:13px;font-weight:700;" title="Alternar Idioma / Switch Language">
+          ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+        </button>
       </div>
       <div class="nav-group">
-        <div class="nav-group-label">Public Services</div>
+        <div class="nav-group-label">${esc(t("publicVerifier"))}</div>
         <ul class="nav-list">
           <li>
             <a class="nav-btn" href="./verify.html" style="text-decoration:none;">
               <span class="nav-btn-left">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                <span>Public QR Verifier</span>
+                <span>${esc(t("publicVerifier"))}</span>
               </span>
             </a>
           </li>
@@ -181,8 +199,7 @@ function renderLoginScreen() {
     </div>
     <div class="sidebar-footer">
       <div style="font-size:12px;color:var(--muted);">
-        Unified Police Department<br/>
-        Command & Judicial Records
+        ${esc(t("deptNotice"))}
       </div>
     </div>
   `;
@@ -190,11 +207,14 @@ function renderLoginScreen() {
   main.innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Unified Police Department — Command & Records Portal</h1>
-        <p class="page-sub">Restricted to authenticated UPD Command & Supervisory personnel</p>
+        <h1 class="page-title">${esc(t("loginTitle"))}</h1>
+        <p class="page-sub">${esc(t("loginSub"))}</p>
       </div>
-      <div class="header-actions">
-        <a class="btn btn-secondary" href="./verify.html">Public Document Verification</a>
+      <div class="header-actions" style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:700;">
+          ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+        </button>
+        <a class="btn btn-secondary" href="./verify.html">${esc(t("publicVerifier"))}</a>
       </div>
     </div>
 
@@ -211,21 +231,21 @@ function renderLoginScreen() {
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
           <img src="./assets/opacidade2.png" alt="UPD Crest" style="width:44px;height:44px;" />
           <div>
-            <h2 class="panel-title">Discord Command Authentication</h2>
-            <div class="panel-sub">Verifies your UPD Command & Supervisory role membership</div>
+            <h2 class="panel-title">${esc(t("loginAuthTitle"))}</h2>
+            <div class="panel-sub">${esc(t("loginAuthSub"))}</div>
           </div>
         </div>
         <p style="margin:0 0 18px;color:var(--muted);font-size:13px;line-height:1.55;">
-          Sign in with your official Discord account. Access is automatically granted to members holding the UPD Command / Supervision role or admitted by Command Staff.
+          ${esc(t("loginAuthDesc"))}
         </p>
         <a class="btn btn-primary" href="${esc(getDiscordOAuthUrl())}" style="width:100%;justify-content:center;height:38px;font-size:14px;">
-          Sign in with Discord
+          ${esc(t("btnDiscordLogin"))}
         </a>
 
         <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;color:var(--muted);">Authorized Command Personnel</span>
+          <span style="font-size:12px;color:var(--muted);">${esc(t("authorizedStaff"))}</span>
           <button type="button" class="btn btn-ghost" id="btn-toggle-recovery" style="font-size:12px;height:26px;padding:0 8px;">
-            ${showRecoveryForm ? "Hide Recovery Login" : "Command Recovery Login"}
+            ${showRecoveryForm ? esc(t("hideRecoveryBtn")) : esc(t("recoveryLoginBtn"))}
           </button>
         </div>
 
@@ -234,25 +254,25 @@ function renderLoginScreen() {
             ? `
           <form id="owner-login-form" style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);">
             <div class="field-group">
-              <label class="field-label" for="login-discord-id">Authorized Credential ID</label>
-              <input class="input mono" id="login-discord-id" name="discord_id" placeholder="Enter your Discord ID" autocomplete="off" required />
+              <label class="field-label" for="login-discord-id">${esc(t("recoveryCredLabel"))}</label>
+              <input class="input mono" id="login-discord-id" name="discord_id" placeholder="${esc(t("recoveryCredPlaceholder"))}" autocomplete="off" required />
             </div>
             <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">
               <div class="field-group">
-                <label class="field-label" for="login-rp-name">Officer Roleplay Name (Signature)</label>
+                <label class="field-label" for="login-rp-name">${esc(t("recoverySigLabel"))}</label>
                 <input class="input" id="login-rp-name" name="rp_name" placeholder="Officer Full Name" autocomplete="off" required />
               </div>
               <div class="field-group">
-                <label class="field-label" for="login-badge">Badge #</label>
+                <label class="field-label" for="login-badge">${esc(t("recoveryBadgeLabel"))}</label>
                 <input class="input mono" id="login-badge" name="badge" placeholder="01" autocomplete="off" required />
               </div>
             </div>
             <div class="field-group">
-              <label class="field-label" for="login-access-key">Command Supervision Key</label>
-              <input class="input mono" id="login-access-key" name="access_key" type="password" placeholder="Enter Command Key" autocomplete="off" required />
+              <label class="field-label" for="login-access-key">${esc(t("recoveryKeyLabel"))}</label>
+              <input class="input mono" id="login-access-key" name="access_key" type="password" placeholder="${esc(t("recoveryKeyPlaceholder"))}" autocomplete="off" required />
             </div>
             <button type="submit" class="btn btn-secondary" style="width:100%;justify-content:center;">
-              Authenticate Command Session
+              ${esc(t("recoverySubmitBtn"))}
             </button>
           </form>
         `
@@ -261,6 +281,13 @@ function renderLoginScreen() {
       </section>
     </div>
   `;
+
+  document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+      setLanguage(getLanguage() === "pt" ? "en" : "pt");
+      renderApp();
+    });
+  });
 
   document.getElementById("btn-toggle-recovery").addEventListener("click", () => {
     showRecoveryForm = !showRecoveryForm;
@@ -299,25 +326,31 @@ function renderSidebar() {
   const pendingCount = store.documents.filter(d => d.status === "PENDING").length;
   const pendingOfficers = store.officers.filter(o => o.status === "pending").length;
   const hash = window.location.hash || "#/";
+  const lang = getLanguage();
 
   document.getElementById("sidebar-nav").innerHTML = `
     <div>
-      <div class="brand-switcher">
-        <img class="brand-crest" src="./assets/opacidade2.png" alt="UPD Crest" />
-        <div class="brand-meta">
-          <div class="brand-title">UPD Records Bureau</div>
-          <div class="brand-sub">Los Santos · Judicial & Internal</div>
+      <div class="brand-switcher" style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <img class="brand-crest" src="./assets/opacidade2.png" alt="UPD Crest" />
+          <div class="brand-meta">
+            <div class="brand-title">${esc(t("brandTitle"))}</div>
+            <div class="brand-sub">${esc(t("brandSub"))}</div>
+          </div>
         </div>
+        <button class="btn btn-ghost btn-lang-toggle" type="button" style="padding:4px 8px;font-size:13px;font-weight:700;" title="Alternar Idioma / Switch Language">
+          ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+        </button>
       </div>
 
       <div class="nav-group">
-        <div class="nav-group-label">Operations</div>
+        <div class="nav-group-label">${esc(t("navOperations"))}</div>
         <ul class="nav-list">
           <li>
             <button class="nav-btn ${hash === "#/" ? "active" : ""}" data-route="#/">
               <span class="nav-btn-left">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-                <span>Overview & Ledger</span>
+                <span>${esc(t("navOverview"))}</span>
               </span>
               <span class="nav-count">${store.documents.length}</span>
             </button>
@@ -326,7 +359,7 @@ function renderSidebar() {
             <button class="nav-btn ${hash.startsWith("#/emitir") ? "active" : ""}" data-route="#/emitir/SW">
               <span class="nav-btn-left">
                 <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-                <span>Issue Document</span>
+                <span>${esc(t("navIssue"))}</span>
               </span>
             </button>
           </li>
@@ -334,7 +367,7 @@ function renderSidebar() {
             <button class="nav-btn ${hash === "#/aprovacoes" ? "active" : ""}" data-route="#/aprovacoes">
               <span class="nav-btn-left">
                 <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                <span>Command Approvals</span>
+                <span>${esc(t("navApprovals"))}</span>
               </span>
               <span class="nav-count">${pendingCount}</span>
             </button>
@@ -343,13 +376,13 @@ function renderSidebar() {
       </div>
 
       <div class="nav-group">
-        <div class="nav-group-label">Command Administration</div>
+        <div class="nav-group-label">${esc(t("navAdmin"))}</div>
         <ul class="nav-list">
           <li>
             <button class="nav-btn ${hash === "#/oficiais" ? "active" : ""}" data-route="#/oficiais">
               <span class="nav-btn-left">
                 <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span>Officers & Admission</span>
+                <span>${esc(t("navOfficers"))}</span>
               </span>
               <span class="nav-count">${pendingOfficers > 0 ? `${pendingOfficers} pending` : store.officers.length}</span>
             </button>
@@ -358,7 +391,7 @@ function renderSidebar() {
             <button class="nav-btn ${hash === "#/patentes" ? "active" : ""}" data-route="#/patentes">
               <span class="nav-btn-left">
                 <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                <span>Ranks & Discord Sync</span>
+                <span>${esc(t("navRanks"))}</span>
               </span>
               <span class="nav-count">${store.ranks.length}</span>
             </button>
@@ -367,7 +400,7 @@ function renderSidebar() {
             <button class="nav-btn ${hash === "#/modelos" ? "active" : ""}" data-route="#/modelos">
               <span class="nav-btn-left">
                 <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                <span>Document Templates</span>
+                <span>${esc(t("navTemplates"))}</span>
               </span>
               <span class="nav-count">${store.templates.length}</span>
             </button>
@@ -376,7 +409,7 @@ function renderSidebar() {
             <a class="nav-btn" href="./verify.html" style="text-decoration:none;">
               <span class="nav-btn-left">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                <span>Public QR Verifier</span>
+                <span>${esc(t("publicVerifier"))}</span>
               </span>
             </a>
           </li>
@@ -394,10 +427,17 @@ function renderSidebar() {
         <div class="officer-sig-preview" title="Auto-generated cursive signature">${esc(officer.rp_name)}</div>
       </div>
       <button class="btn btn-secondary" id="btn-logout" type="button" style="justify-content:center;">
-        Sign Out
+        ${esc(t("signOut"))}
       </button>
     </div>
   `;
+
+  document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+      setLanguage(getLanguage() === "pt" ? "en" : "pt");
+      renderApp();
+    });
+  });
 
   document.querySelectorAll("[data-route]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -421,6 +461,7 @@ function renderOverview(container) {
   const approvedDoj = docs.filter(d => d.status === "APPROVED" && d.category === "doj");
   const approvedInternal = docs.filter(d => d.status === "APPROVED" && d.category === "internal");
   const activeOfficers = store.officers.filter(o => o.status === "active");
+  const lang = getLanguage();
 
   const filteredDocs = docs.filter(d => {
     if (currentDocFilter === "pending") return d.status === "PENDING";
@@ -432,35 +473,38 @@ function renderOverview(container) {
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Records & Judicial Filings Ledger</h1>
-        <p class="page-sub">Unified Police Department · Standardized US-Letter emission, hierarchical counter-signature, and Fivemanage Registry</p>
+        <h1 class="page-title">${esc(t("brandTitle"))} — ${esc(t("ledgerTitle"))}</h1>
+        <p class="page-sub">Unified Police Department · ${esc(t("composerSub"))}</p>
       </div>
-      <div class="header-actions">
-        <a class="btn btn-secondary" href="./verify.html">Verify Control No.</a>
-        <button class="btn btn-primary" id="btn-new-filing">New Official Document</button>
+      <div class="header-actions" style="display:flex;align-items:center;gap:8px;">
+        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:700;">
+          ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+        </button>
+        <a class="btn btn-secondary" href="./verify.html">${esc(t("verifyControlNo"))}</a>
+        <button class="btn btn-primary" id="btn-new-filing">${esc(t("newDocument"))}</button>
       </div>
     </div>
 
     <section class="kpi-strip" aria-label="Key Registry Metrics">
       <div class="kpi-cell">
-        <div class="kpi-label">Awaiting command signature</div>
+        <div class="kpi-label">${esc(t("kpiPendingLabel"))}</div>
         <div class="kpi-value accent-data">${pendingDocs.length}</div>
-        <div class="kpi-caption">Commander+ for DOJ · Corporal+ for internal</div>
+        <div class="kpi-caption">${esc(t("kpiPendingCap"))}</div>
       </div>
       <div class="kpi-cell">
-        <div class="kpi-label">Approved DOJ filings</div>
+        <div class="kpi-label">${esc(t("kpiDojLabel"))}</div>
         <div class="kpi-value">${approvedDoj.length}</div>
-        <div class="kpi-caption">Warrants, 2703(d) orders & operations</div>
+        <div class="kpi-caption">${esc(t("kpiDojCap"))}</div>
       </div>
       <div class="kpi-cell">
-        <div class="kpi-label">Approved internal records</div>
+        <div class="kpi-label">${esc(t("kpiInternalLabel"))}</div>
         <div class="kpi-value">${approvedInternal.length}</div>
-        <div class="kpi-caption">Firearms certifications & commendations</div>
+        <div class="kpi-caption">${esc(t("kpiInternalCap"))}</div>
       </div>
       <div class="kpi-cell">
-        <div class="kpi-label">Admitted sworn officers</div>
-        <div class="kpi-value">${activeOfficers.length} <span style="font-size:14px;color:var(--muted);font-weight:400;">of ${store.officers.length}</span></div>
-        <div class="kpi-caption">Synced with Discord server roles</div>
+        <div class="kpi-label">${esc(t("kpiOfficersLabel"))}</div>
+        <div class="kpi-value">${activeOfficers.length} <span style="font-size:14px;color:var(--muted);font-weight:400;">/ ${store.officers.length}</span></div>
+        <div class="kpi-caption">${esc(t("kpiOfficersCap", { total: store.officers.length }))}</div>
       </div>
     </section>
 
@@ -468,45 +512,49 @@ function renderOverview(container) {
       <section class="panel">
         <div class="panel-header">
           <div>
-            <h2 class="panel-title">Official Document Queue & Registry</h2>
-            <div class="panel-sub">Showing ${filteredDocs.length} of ${docs.length} total records</div>
+            <h2 class="panel-title">${esc(t("ledgerTitle"))}</h2>
+            <div class="panel-sub">${filteredDocs.length} / ${docs.length}</div>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;">
-            <button class="btn ${currentDocFilter === "all" ? "btn-primary" : "btn-secondary"}" data-filter="all">All (${docs.length})</button>
-            <button class="btn ${currentDocFilter === "pending" ? "btn-primary" : "btn-secondary"}" data-filter="pending">Pending (${pendingDocs.length})</button>
-            <button class="btn ${currentDocFilter === "approved" ? "btn-primary" : "btn-secondary"}" data-filter="approved">Approved (${approvedDoj.length + approvedInternal.length})</button>
-            <button class="btn ${currentDocFilter === "mine" ? "btn-primary" : "btn-secondary"}" data-filter="mine">Mine</button>
+            <button class="btn ${currentDocFilter === "all" ? "btn-primary" : "btn-secondary"}" data-filter="all">${esc(t("filterAll", { count: docs.length }))}</button>
+            <button class="btn ${currentDocFilter === "pending" ? "btn-primary" : "btn-secondary"}" data-filter="pending">${esc(t("filterPending", { count: pendingDocs.length }))}</button>
+            <button class="btn ${currentDocFilter === "approved" ? "btn-primary" : "btn-secondary"}" data-filter="approved">${esc(t("filterApproved", { count: approvedDoj.length + approvedInternal.length }))}</button>
+            <button class="btn ${currentDocFilter === "mine" ? "btn-primary" : "btn-secondary"}" data-filter="mine">${esc(t("filterMine", { count: docs.filter(d => d.issuer_id === officer.id).length }))}</button>
           </div>
         </div>
 
         ${
           filteredDocs.length === 0
             ? `<div style="border:1px dashed var(--control);border-radius:var(--radius-card);padding:18px;color:var(--muted);font-size:13px;">
-                 No official documents issued yet in this filter. Select a template on the right or click <strong>New Official Document</strong> to compose.
+                 Nenhum documento emitido neste filtro.
                </div>`
             : `
               <div class="table-wrap">
                 <table class="data-table">
                   <thead>
                     <tr>
-                      <th>Control No. / ID</th>
-                      <th>Document & Series</th>
-                      <th>Submitting Officer</th>
-                      <th>Status</th>
-                      <th class="num">Action</th>
+                      <th>${esc(t("colControlNo"))}</th>
+                      <th>${esc(t("colTemplate"))}</th>
+                      <th>${esc(t("colIssuer"))}</th>
+                      <th>${esc(t("colStatus"))}</th>
+                      <th class="num">${esc(t("colActions"))}</th>
                     </tr>
                   </thead>
                   <tbody>
                     ${filteredDocs
                       .map(d => {
                         const canApp = d.status === "PENDING" && canApproveDocument(officer, d);
+                        const tplResolved = resolveTemplateForLang(
+                          store.templates.find(t => t.code === d.template_code) || { code: d.template_code, name: d.template_name },
+                          d.lang || lang
+                        );
                         return `
                           <tr>
                             <td class="mono" style="font-weight:500;">
                               ${d.control_no ? `<a href="./verify.html?n=${encodeURIComponent(d.control_no)}" style="color:var(--text);text-decoration:underline;">${esc(d.control_no)}</a>` : `Draft #${d.id}`}
                             </td>
                             <td>
-                              <div style="font-weight:500;">[${esc(d.template_code)}] ${esc(d.template_name)}</div>
+                              <div style="font-weight:500;">[${esc(d.template_code)}] ${esc(tplResolved.name || d.template_name)}</div>
                               <div style="font-size:12px;color:var(--muted);">
                                 ${d.category === "doj" ? "DOJ Judicial Filing (Commander+)" : "Internal Record (Corporal+)"} · ${esc(d.created_at.slice(0, 10))}
                               </div>
@@ -521,8 +569,8 @@ function renderOverview(container) {
                             </td>
                             <td class="num">
                               <div style="display:inline-flex;gap:6px;justify-content:flex-end;">
-                                <button class="btn btn-secondary" data-inspect="${d.id}">View Sheet</button>
-                                ${canApp ? `<button class="btn btn-primary" data-quick-approve="${d.id}">Counter-Sign</button>` : ""}
+                                <button class="btn btn-secondary" data-inspect="${d.id}">${esc(t("btnViewDoc"))}</button>
+                                ${canApp ? `<button class="btn btn-primary" data-quick-approve="${d.id}">${esc(t("btnApprove"))}</button>` : ""}
                               </div>
                             </td>
                           </tr>
@@ -539,17 +587,17 @@ function renderOverview(container) {
       <aside class="panel">
         <div class="panel-header">
           <div>
-            <h2 class="panel-title">Standardized US Templates</h2>
-            <div class="panel-sub">Select a template to open composer</div>
+            <h2 class="panel-title">${esc(t("navTemplates"))}</h2>
+            <div class="panel-sub">${esc(t("composerSub"))}</div>
           </div>
         </div>
 
         <table class="data-table">
           <thead>
             <tr>
-              <th>Code</th>
-              <th>Template & Approval Threshold</th>
-              <th class="num">Issue</th>
+              <th>${esc(t("colTemplate"))}</th>
+              <th>${esc(t("colApproval"))}</th>
+              <th class="num">${esc(t("navIssue"))}</th>
             </tr>
           </thead>
           <tbody>
@@ -557,18 +605,19 @@ function renderOverview(container) {
               .filter(t => t.active)
               .map(t => {
                 const allowed = canIssueTemplate(officer, t);
+                const tplResolved = resolveTemplateForLang(t, lang);
                 return `
                   <tr>
                     <td class="mono" style="font-weight:600;">${esc(t.code)}</td>
                     <td>
-                      <div style="font-weight:500;">${esc(t.name)}</div>
+                      <div style="font-weight:500;">${esc(tplResolved.name)}</div>
                       <div style="font-size:12px;color:var(--muted);">
                         ${t.category === "doj" ? "DOJ · Approver: Commander+" : "Internal · Approver: Corporal+"}
                       </div>
                     </td>
                     <td class="num">
                       <button class="btn ${allowed ? "btn-secondary" : ""}" data-issue="${esc(t.code)}" ${!allowed ? "disabled" : ""}>
-                        Compose
+                        ${esc(t("navIssue"))}
                       </button>
                     </td>
                   </tr>
@@ -698,27 +747,47 @@ function renderInspectModal(container) {
 
 // ─── View 2: Split Document Composer + Live US-Letter Sheet ───────────────────
 
+let currentComposerDocLang = null;
+
 function renderComposer(container, codeParam) {
   const officer = getCurrentOfficer();
-  const tpl = store.templates.find(t => t.code === (codeParam || "SW").toUpperCase()) || store.templates[0];
-  const fieldValues = {};
+  if (!currentComposerDocLang) {
+    currentComposerDocLang = getLanguage() || "pt";
+  }
+  const rawTpl = store.templates.find(t => t.code === (codeParam || "SW").toUpperCase()) || store.templates[0];
+  const tpl = resolveTemplateForLang(rawTpl, currentComposerDocLang);
+  const fieldValues = { _lang: currentComposerDocLang };
   tpl.fields.forEach(f => {
     fieldValues[f.key] = "";
   });
+  const lang = getLanguage();
 
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Issue Official Document — [${esc(tpl.code)}]</h1>
+        <h1 class="page-title">${esc(t("composerTitle"))} — [${esc(tpl.code)}]</h1>
         <p class="page-sub">
-          ${esc(tpl.name)} · Requires <strong>${tpl.category === "doj" ? "Commander+ (Level 11+)" : "Corporal+ (Level 5+)"}</strong> counter-signature
+          ${esc(tpl.name)} · ${esc(t("fieldAuthorityNotice", {
+            minIssue: tpl.min_issue_level,
+            minApprove: tpl.category === "doj" ? 11 : 5
+          }))}
         </p>
       </div>
-      <div class="header-actions">
-        <select id="tpl-picker" class="select" style="width:310px;">
+      <div class="header-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:700;">
+          ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+        </button>
+        <select id="doc-lang-select" class="select" style="width:230px;font-weight:600;">
+          <option value="pt" ${currentComposerDocLang === "pt" ? "selected" : ""}>${esc(t("docLangPt"))}</option>
+          <option value="en" ${currentComposerDocLang === "en" ? "selected" : ""}>${esc(t("docLangEn"))}</option>
+        </select>
+        <select id="tpl-picker" class="select" style="width:280px;">
           ${store.templates
             .filter(t => t.active)
-            .map(t => `<option value="${esc(t.code)}" ${t.code === tpl.code ? "selected" : ""}>[${esc(t.code)}] ${esc(t.name)}</option>`)
+            .map(t => {
+              const res = resolveTemplateForLang(t, currentComposerDocLang);
+              return `<option value="${esc(t.code)}" ${t.code === tpl.code ? "selected" : ""}>[${esc(t.code)}] ${esc(res.name)}</option>`;
+            })
             .join("")}
         </select>
       </div>
@@ -728,8 +797,8 @@ function renderComposer(container, codeParam) {
       <section class="panel">
         <div class="panel-header">
           <div>
-            <h2 class="panel-title">Filing Parameters</h2>
-            <div class="panel-sub">Submitting as ${esc(officer.rank_name)} ${esc(officer.rp_name)} (Badge #${esc(officer.badge)})</div>
+            <h2 class="panel-title">${esc(tpl.name)}</h2>
+            <div class="panel-sub">${esc(officer.rank_name)} ${esc(officer.rp_name)} (Badge #${esc(officer.badge)}) · ${esc(t("docLangLabel"))}: <strong>${currentComposerDocLang === 'pt' ? 'Português' : 'English'}</strong></div>
           </div>
         </div>
 
@@ -756,22 +825,34 @@ function renderComposer(container, codeParam) {
             <span style="font-size:12px;color:var(--muted);">
               Channel: <strong>#upd-official-documents</strong>
             </span>
-            <button type="submit" class="btn btn-primary">Submit Draft for Command Approval</button>
+            <button type="submit" class="btn btn-primary">${esc(t("btnSubmitDraft"))}</button>
           </div>
         </form>
       </section>
 
       <aside class="sheet-stage">
         <div class="sheet-toolbar">
-          <span><strong>Live US-Letter Sheet (8.5 × 11 in)</strong> · Updates as you type</span>
-          <span class="mono">Watermark: opacidade2.png · Seal: selo.png</span>
+          <span><strong>${esc(t("liveStageTitle"))}</strong> · ${esc(t("liveStageSub"))}</span>
+          <span class="mono">${currentComposerDocLang.toUpperCase()} · Watermark · Seal</span>
         </div>
         <div id="live-sheet-holder">
-          ${buildLiveSheetHtml(tpl, fieldValues)}
+          ${buildLiveSheetHtml(rawTpl, fieldValues, { lang: currentComposerDocLang })}
         </div>
       </aside>
     </div>
   `;
+
+  document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+      setLanguage(getLanguage() === "pt" ? "en" : "pt");
+      renderApp();
+    });
+  });
+
+  document.getElementById("doc-lang-select").addEventListener("change", e => {
+    currentComposerDocLang = e.target.value;
+    renderComposer(container, tpl.code);
+  });
 
   document.getElementById("tpl-picker").addEventListener("change", e => {
     window.location.hash = `#/emitir/${e.target.value}`;
@@ -781,13 +862,14 @@ function renderComposer(container, codeParam) {
   container.querySelectorAll("[data-key]").forEach(inp => {
     inp.addEventListener("input", () => {
       fieldValues[inp.getAttribute("data-key")] = inp.value;
-      holder.innerHTML = buildLiveSheetHtml(tpl, fieldValues);
+      holder.innerHTML = buildLiveSheetHtml(rawTpl, fieldValues, { lang: currentComposerDocLang });
     });
   });
 
   document.getElementById("composer-form").addEventListener("submit", e => {
     e.preventDefault();
     try {
+      fieldValues._lang = currentComposerDocLang;
       const created = createDraftLocal(tpl.code, fieldValues);
       selectedInspectDocId = created.id;
       window.location.hash = "#/aprovacoes";
@@ -803,33 +885,39 @@ function renderApprovals(container) {
   const officer = getCurrentOfficer();
   const pending = store.documents.filter(d => d.status === "PENDING");
   const activeDoc = pending.find(d => d.id === selectedInspectDocId) || pending[0] || null;
+  const lang = getLanguage();
 
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Command Approval Queue</h1>
+        <h1 class="page-title">${esc(t("approvalsTitle"))}</h1>
         <p class="page-sub">
-          DOJ filings require <strong>Commander+ (Level 11+)</strong>; Internal records require <strong>Corporal+ (Level 5+)</strong>. Self-approval is blocked.
+          ${esc(t("approvalsSub"))}
         </p>
+      </div>
+      <div class="header-actions" style="display:flex;align-items:center;gap:8px;">
+        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:700;">
+          ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+        </button>
       </div>
     </div>
 
     ${
       pending.length === 0
-        ? `<div class="panel"><p style="margin:0;color:var(--muted);">No pending drafts awaiting counter-signature.</p></div>`
+        ? `<div class="panel"><p style="margin:0;color:var(--muted);">${esc(t("noPendingDocs"))}</p></div>`
         : `
         <div class="composer-layout">
           <section class="panel">
             <div class="panel-header">
-              <h2 class="panel-title">Pending Drafts (${pending.length})</h2>
+              <h2 class="panel-title">${esc(t("approvalsTitle"))} (${pending.length})</h2>
             </div>
             <table class="data-table">
               <thead>
                 <tr>
                   <th>Draft</th>
-                  <th>Officer</th>
-                  <th>Min Rank</th>
-                  <th class="num">Action</th>
+                  <th>${esc(t("colIssuer"))}</th>
+                  <th>${esc(t("colApproval"))}</th>
+                  <th class="num">${esc(t("colActions"))}</th>
                 </tr>
               </thead>
               <tbody>
@@ -837,27 +925,31 @@ function renderApprovals(container) {
                   .map(d => {
                     const allowed = canApproveDocument(officer, d);
                     const isSelf = Number(officer.id) === Number(d.issuer_id);
+                    const tplRes = resolveTemplateForLang(
+                      store.templates.find(t => t.code === d.template_code) || { code: d.template_code, name: d.template_name },
+                      d.lang || lang
+                    );
                     return `
                       <tr style="${activeDoc && d.id === activeDoc.id ? "background:var(--raised);" : ""}">
                         <td>
                           <div style="font-weight:600;">#${d.id} · [${esc(d.template_code)}]</div>
-                          <div style="font-size:12px;color:var(--muted);">${esc(d.template_name)}</div>
+                          <div style="font-size:12px;color:var(--muted);">${esc(tplRes.name || d.template_name)}</div>
                         </td>
                         <td>
                           <div>${esc(d.issuer_rank)} ${esc(d.issuer_name)}</div>
-                          <div class="mono" style="font-size:12px;color:var(--muted);">#${esc(d.issuer_badge)}</div>
+                          <div class="mono" style="font-size:12px;color:var(--muted);">Badge #${esc(d.issuer_badge)}</div>
                         </td>
                         <td>
                           <span class="pill pill-neutral">${d.category === "doj" ? "Commander+" : "Corporal+"}</span>
                         </td>
                         <td class="num">
                           <div style="display:inline-flex;gap:6px;">
-                            <button class="btn btn-secondary" data-select-pending="${d.id}">Review</button>
+                            <button class="btn btn-secondary" data-select-pending="${d.id}">${esc(t("btnViewDoc"))}</button>
                             <button class="btn btn-primary" data-approve-id="${d.id}" ${!allowed ? "disabled" : ""} title="${isSelf ? "Self-approval prohibited" : ""}">
-                              Approve
+                              ${esc(t("btnApprove"))}
                             </button>
                             <button class="btn btn-danger" data-reject-id="${d.id}" ${!allowed ? "disabled" : ""}>
-                              Reject
+                              ${esc(t("btnReject"))}
                             </button>
                           </div>
                         </td>
@@ -874,8 +966,8 @@ function renderApprovals(container) {
               activeDoc
                 ? `
                   <div class="sheet-toolbar">
-                    <span><strong>Reviewing Draft #${activeDoc.id} (${esc(activeDoc.template_code)})</strong></span>
-                    <span class="mono">Issuer: ${esc(activeDoc.issuer_name)} (#${esc(activeDoc.issuer_badge)})</span>
+                    <span><strong>Draft #${activeDoc.id} (${esc(activeDoc.template_code)})</strong></span>
+                    <span class="mono">${esc(activeDoc.issuer_name)} (#${esc(activeDoc.issuer_badge)})</span>
                   </div>
                   ${buildLiveSheetHtml(
                     store.templates.find(t => t.code === activeDoc.template_code) || store.templates[0],
@@ -884,6 +976,7 @@ function renderApprovals(container) {
                       status: activeDoc.status,
                       control_no: activeDoc.control_no,
                       created_at: activeDoc.created_at,
+                      lang: activeDoc.lang || lang,
                       issuer: {
                         rp_name: activeDoc.issuer_name,
                         badge: activeDoc.issuer_badge,
@@ -899,6 +992,13 @@ function renderApprovals(container) {
       `
     }
   `;
+
+  document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+      setLanguage(getLanguage() === "pt" ? "en" : "pt");
+      renderApp();
+    });
+  });
 
   container.querySelectorAll("[data-select-pending]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1306,6 +1406,15 @@ export function renderApp() {
   } else {
     renderOverview(main);
   }
+
+  const lang = getLanguage();
+  document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
+    btn.textContent = lang === "pt" ? "🇧🇷 PT" : "🇺🇸 EN";
+    btn.onclick = () => {
+      setLanguage(getLanguage() === "pt" ? "en" : "pt");
+      renderApp();
+    };
+  });
 }
 
 window.addEventListener("hashchange", renderApp);

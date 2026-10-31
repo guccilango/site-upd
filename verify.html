@@ -14,11 +14,14 @@
       <div style="display:flex;align-items:center;gap:12px;">
         <img src="./assets/opacidade2.png" alt="UPD Crest" style="width:44px;height:44px;" />
         <div>
-          <h1 class="page-title">Public Record Authenticity Registry</h1>
-          <p class="page-sub">Unified Police Department · County of Los Santos · Cryptographic & Control Number Verification</p>
+          <h1 class="page-title" id="page-title">Public Record Authenticity Registry</h1>
+          <p class="page-sub" id="page-sub">Unified Police Department · County of Los Santos · Cryptographic & Control Number Verification</p>
         </div>
       </div>
-      <a class="btn btn-secondary" href="./index.html">Back to Officer Portal</a>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn btn-secondary" id="btn-verify-lang" type="button" style="font-weight:700;">🇧🇷 PT</button>
+        <a class="btn btn-secondary" id="btn-back" href="./index.html">Back to Officer Portal</a>
+      </div>
     </div>
 
     <section class="panel">
@@ -29,9 +32,9 @@
           placeholder="Enter Control Number (e.g., UPD-SW-2026-0001 or UPD-FQ-2026-0001)"
           required
         />
-        <button class="btn btn-primary" type="submit">Verify Record</button>
+        <button class="btn btn-primary" id="btn-submit-verify" type="submit">Verify Record</button>
       </form>
-      <div style="margin-top:8px;font-size:12px;color:var(--muted);">
+      <div id="verify-caption" style="margin-top:8px;font-size:12px;color:var(--muted);">
         Public verification confirms official issuance and command counter-signature without exposing confidential probable-cause narratives.
       </div>
     </section>
@@ -41,18 +44,40 @@
 
   <script type="module">
     import { fetchPublicVerifyRecord } from "./api.js";
+    import { t, getLanguage, setLanguage, UI_I18N } from "./i18n.js";
 
     const input = document.getElementById("verify-input");
     const resultBox = document.getElementById("verify-result");
+    const langBtn = document.getElementById("btn-verify-lang");
 
     function esc(s) {
       return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
+    function updateStaticTexts() {
+      const lang = getLanguage();
+      langBtn.textContent = lang === "pt" ? "🇧🇷 PT" : "🇺🇸 EN";
+      document.getElementById("page-title").textContent = t("qrTitle");
+      document.getElementById("page-sub").textContent = t("qrSub");
+      document.getElementById("btn-back").textContent = t("backToPortal");
+      input.placeholder = t("qrPlaceholder");
+      document.getElementById("btn-submit-verify").textContent = t("btnVerify");
+      document.getElementById("verify-caption").textContent = lang === "pt"
+        ? "A verificação pública confirma a autenticidade e contra-assinatura de comando sem expor relatórios confidenciais de causa provável."
+        : "Public verification confirms official issuance and command counter-signature without exposing confidential probable-cause narratives.";
+    }
+
+    langBtn.addEventListener("click", () => {
+      setLanguage(getLanguage() === "pt" ? "en" : "pt");
+      updateStaticTexts();
+      if (input.value) runVerification(input.value);
+    });
+
     async function runVerification(ctrlNo) {
       const code = (ctrlNo || "").trim().toUpperCase();
       if (!code) return;
       input.value = code;
+      const lang = getLanguage();
 
       const rec = await fetchPublicVerifyRecord(code);
 
@@ -60,11 +85,11 @@
         resultBox.innerHTML = `
           <section class="panel" style="border-color:#f8c6c0;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-              <h2 class="panel-title">Record Not Found</h2>
-              <span class="pill pill-rejected">UNVERIFIED</span>
+              <h2 class="panel-title">${esc(t("recordNotFound"))}</h2>
+              <span class="pill pill-rejected">${lang === "pt" ? "NÃO ENCONTRADO" : "UNVERIFIED"}</span>
             </div>
             <p style="margin:0;color:var(--muted);">
-              No official record matching control number <strong class="mono">${esc(code)}</strong> exists in the Unified Police Department Registry.
+              ${esc(t("notFoundDesc", { code }))}
             </p>
           </section>
         `;
@@ -83,35 +108,35 @@
               </div>
             </div>
             <span class="pill ${isValid ? "pill-approved" : "pill-revoked"}">
-              ${isValid ? "VALID · AUTHENTICATED" : esc(rec.status)}
+              ${isValid ? esc(t("verifiedValid")) : esc(rec.status)}
             </span>
           </div>
 
           <table class="data-table">
             <tbody>
               <tr>
-                <th style="width:210px;">Control Number</th>
+                <th style="width:210px;">${lang === "pt" ? "Nº de Controle" : "Control Number"}</th>
                 <td class="mono" style="font-weight:600;">${esc(rec.control_no)}</td>
               </tr>
               <tr>
-                <th>Document Classification</th>
-                <td>${rec.category === "doj" ? "DOJ Judicial Filing (Superior Court)" : "Internal Departmental Certification"}</td>
+                <th>${lang === "pt" ? "Classificação do Registro" : "Document Classification"}</th>
+                <td>${rec.category === "doj" ? (lang === "pt" ? "Processo Judicial DOJ (Tribunal Superior)" : "DOJ Judicial Filing (Superior Court)") : (lang === "pt" ? "Certificação Departamental Interna" : "Internal Departmental Certification")}</td>
               </tr>
               <tr>
-                <th>Submitting / Affiant Officer</th>
+                <th>${lang === "pt" ? "Oficial Requerente / Emissor" : "Submitting / Affiant Officer"}</th>
                 <td>${esc(rec.issued_by)}</td>
               </tr>
               <tr>
-                <th>Approving Command Authority</th>
+                <th>${lang === "pt" ? "Autoridade de Comando Responsável" : "Approving Command Authority"}</th>
                 <td>${esc(rec.approved_by)}</td>
               </tr>
               <tr>
-                <th>Timestamp of Authentication</th>
+                <th>${lang === "pt" ? "Data e Hora da Autenticação" : "Timestamp of Authentication"}</th>
                 <td class="mono">${esc((rec.approved_at || "").slice(0, 19).replace("T", " "))} UTC</td>
               </tr>
               ${
                 rec.revocation_note
-                  ? `<tr><th>Revocation Notice</th><td style="color:var(--negative);font-weight:600;">${esc(rec.revocation_note)}</td></tr>`
+                  ? `<tr><th>${lang === "pt" ? "Aviso de Revogação" : "Revocation Notice"}</th><td style="color:var(--negative);font-weight:600;">${esc(rec.revocation_note)}</td></tr>`
                   : ""
               }
             </tbody>
@@ -125,6 +150,7 @@
       runVerification(input.value);
     });
 
+    updateStaticTexts();
     const params = new URLSearchParams(window.location.search);
     const initialNo = params.get("n") || "UPD-SW-2026-0001";
     runVerification(initialNo);
