@@ -479,7 +479,7 @@ function renderOverview(container) {
                       .map(d => {
                         const canApp = d.status === "PENDING" && canApproveDocument(officer, d);
                         const tplResolved = resolveTemplateForLang(
-                          store.templates.find(t => t.code === d.template_code) || { code: d.template_code, name: d.template_name },
+                          store.templates.find(tplItem => tplItem.code === d.template_code) || { code: d.template_code, name: d.template_name },
                           d.lang || "pt"
                         );
                         const docLangBadge = (d.lang || "pt") === "en"
@@ -491,7 +491,7 @@ function renderOverview(container) {
                               ${d.control_no ? `<a href="./verify.html?n=${encodeURIComponent(d.control_no)}" style="color:var(--text);text-decoration:underline;">${esc(d.control_no)}</a>` : `Draft #${d.id}`}
                             </td>
                             <td>
-                              <div style="font-weight:500;display:flex;align-items:center;">
+                              <div style="font-weight:500;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
                                 <span>[${esc(d.template_code)}] ${esc(tplResolved.name || d.template_name)}</span>
                                 ${docLangBadge}
                               </div>
@@ -508,9 +508,9 @@ function renderOverview(container) {
                               ${d.approver_name ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">Signed: ${esc(d.approver_rank)} ${esc(d.approver_name)}</div>` : ""}
                             </td>
                             <td class="num">
-                              <div style="display:inline-flex;gap:6px;justify-content:flex-end;">
-                                <button class="btn btn-secondary" data-inspect="${d.id}">${esc(t("btnViewDoc"))}</button>
-                                ${canApp ? `<button class="btn btn-primary" data-quick-approve="${d.id}">${esc(t("btnApprove"))}</button>` : ""}
+                              <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
+                                <button type="button" class="btn btn-secondary" data-inspect="${d.id}">${esc(t("btnViewDoc"))}</button>
+                                ${canApp ? `<button type="button" class="btn btn-primary" data-quick-approve="${d.id}">✅ ${esc(t("btnApprove"))}</button>` : ""}
                               </div>
                             </td>
                           </tr>
@@ -532,40 +532,42 @@ function renderOverview(container) {
           </div>
         </div>
 
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>${esc(t("colTemplate"))}</th>
-              <th>${esc(t("colApproval"))}</th>
-              <th class="num">${esc(t("navIssue"))}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${store.templates
-              .filter(t => t.active)
-              .map(t => {
-                const allowed = canIssueTemplate(officer, t);
-                const tplResolved = resolveTemplateForLang(t, lang);
-                return `
-                  <tr>
-                    <td class="mono" style="font-weight:600;">${esc(t.code)}</td>
-                    <td>
-                      <div style="font-weight:500;">${esc(tplResolved.name)}</div>
-                      <div style="font-size:12px;color:var(--muted);">
-                        ${t.category === "doj" ? "DOJ · Approver: Commander+" : "Internal · Approver: Corporal+"}
-                      </div>
-                    </td>
-                    <td class="num">
-                      <button class="btn ${allowed ? "btn-secondary" : ""}" data-issue="${esc(t.code)}" ${!allowed ? "disabled" : ""}>
-                        ${esc(t("navIssue"))}
-                      </button>
-                    </td>
-                  </tr>
-                `;
-              })
-              .join("")}
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>${esc(t("colTemplate"))}</th>
+                <th>${esc(t("colApproval"))}</th>
+                <th class="num">${esc(t("navIssue"))}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${store.templates
+                .filter(tplItem => tplItem.active)
+                .map(tplItem => {
+                  const allowed = canIssueTemplate(officer, tplItem);
+                  const tplResolved = resolveTemplateForLang(tplItem, lang);
+                  return `
+                    <tr>
+                      <td class="mono" style="font-weight:600;">${esc(tplItem.code)}</td>
+                      <td>
+                        <div style="font-weight:500;">${esc(tplResolved.name)}</div>
+                        <div style="font-size:12px;color:var(--muted);">
+                          ${tplItem.category === "doj" ? "DOJ · Approver: Commander+" : "Internal · Approver: Corporal+"}
+                        </div>
+                      </td>
+                      <td class="num">
+                        <button type="button" class="btn ${allowed ? "btn-secondary" : ""}" data-issue="${esc(tplItem.code)}" ${!allowed ? "disabled" : ""}>
+                          ${esc(t("navIssue"))}
+                        </button>
+                      </td>
+                    </tr>
+                  `;
+                })
+                .join("")}
+            </tbody>
+          </table>
+        </div>
       </aside>
     </div>
 
@@ -606,6 +608,8 @@ function renderOverview(container) {
     btn.addEventListener("click", () => {
       selectedInspectDocId = Number(btn.getAttribute("data-inspect"));
       renderInspectModal(container);
+      const drw = container.querySelector("#inspect-drawer");
+      if (drw) drw.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
 
@@ -617,25 +621,28 @@ function renderOverview(container) {
 function renderInspectModal(container) {
   const drawer = container.querySelector("#inspect-drawer");
   if (!drawer || !selectedInspectDocId) return;
-  const doc = store.documents.find(d => d.id === selectedInspectDocId);
+  const doc = store.documents.find(d => Number(d.id) === Number(selectedInspectDocId));
   if (!doc) return;
-  const tpl = store.templates.find(t => t.code === doc.template_code) || store.templates[0];
+  const tpl = store.templates.find(tplItem => tplItem.code === doc.template_code) || store.templates[0];
   const officer = getCurrentOfficer();
   const canApp = doc.status === "PENDING" && canApproveDocument(officer, doc);
+  const lang = getLanguage();
 
   drawer.innerHTML = `
     <section class="panel" style="margin-top:8px;">
-      <div class="panel-header">
+      <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
         <div>
           <h2 class="panel-title">Official Sheet Inspection — ${esc(doc.control_no || `Draft #${doc.id}`)}</h2>
           <div class="panel-sub">
             Issued by ${esc(doc.issuer_rank)} ${esc(doc.issuer_name)} (#${esc(doc.issuer_badge)})
           </div>
         </div>
-        <div style="display:flex;gap:8px;">
-          ${canApp ? `<button class="btn btn-primary" id="btn-modal-approve">Approve & Counter-Sign</button>` : ""}
-          ${doc.status === "APPROVED" && officer.is_admin ? `<button class="btn btn-danger" id="btn-modal-revoke">Revoke Record</button>` : ""}
-          <button class="btn btn-secondary" id="btn-close-inspect">Close Preview</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${canApp ? `<button type="button" class="btn btn-primary" id="btn-modal-approve">✅ ${esc(t("btnApprove"))}</button>` : ""}
+          ${canApp ? `<button type="button" class="btn btn-danger" id="btn-modal-reject">${esc(t("btnReject"))}</button>` : ""}
+          <button type="button" class="btn btn-secondary" id="btn-modal-print">🖨️ ${lang === "pt" ? "Imprimir / PDF" : "Print / Save PDF"}</button>
+          ${doc.status === "APPROVED" && officer.is_admin ? `<button type="button" class="btn btn-danger" id="btn-modal-revoke">${esc(t("btnRevoke"))}</button>` : ""}
+          <button type="button" class="btn btn-secondary" id="btn-close-inspect">${lang === "pt" ? "Fechar" : "Close Preview"}</button>
         </div>
       </div>
       <div style="max-width:780px;margin:0 auto;">
@@ -659,11 +666,32 @@ function renderInspectModal(container) {
     drawer.innerHTML = "";
   });
 
+  const printBtn = drawer.querySelector("#btn-modal-print");
+  if (printBtn) {
+    printBtn.addEventListener("click", () => {
+      window.print();
+    });
+  }
+
   const appBtn = drawer.querySelector("#btn-modal-approve");
   if (appBtn) {
     appBtn.addEventListener("click", () => {
       try {
         approveDocumentLocal(doc.id);
+        renderApp();
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+  }
+
+  const rejBtn = drawer.querySelector("#btn-modal-reject");
+  if (rejBtn) {
+    rejBtn.addEventListener("click", () => {
+      const reason = prompt(lang === "pt" ? "Justificativa para rejeitar esta minuta:" : "Reason for rejecting this draft:", lang === "pt" ? "Narrativa de causa provável insuficiente." : "Insufficient probable cause narrative.");
+      if (!reason) return;
+      try {
+        rejectDocumentLocal(doc.id, reason);
         renderApp();
       } catch (e) {
         alert(e.message);
@@ -702,7 +730,7 @@ function renderComposer(container, codeParam, savedValues = null) {
   }
 
   const docLang = getDocumentLanguage();
-  const rawTpl = store.templates.find(t => t.code === (codeParam || "SW").toUpperCase()) || store.templates[0];
+  const rawTpl = store.templates.find(tplItem => tplItem.code === (codeParam || "SW").toUpperCase()) || store.templates[0];
   const tpl = resolveTemplateForLang(rawTpl, docLang);
   
   const fieldValues = { _lang: docLang, ...(savedValues || {}) };
@@ -713,6 +741,12 @@ function renderComposer(container, codeParam, savedValues = null) {
   });
 
   const lang = getLanguage(); // Site UI language
+  const canSelfApproveThis = canApproveDocument(officer, {
+    issuer_id: officer.id,
+    min_approve_level: rawTpl.min_approve_level,
+    category: rawTpl.category,
+    status: "PENDING"
+  });
 
   container.innerHTML = `
     <div class="page-header">
@@ -731,10 +765,10 @@ function renderComposer(container, codeParam, savedValues = null) {
         </button>
         <select id="tpl-picker" class="select" style="width:280px;">
           ${store.templates
-            .filter(t => t.active)
-            .map(t => {
-              const res = resolveTemplateForLang(t, docLang);
-              return `<option value="${esc(t.code)}" ${t.code === tpl.code ? "selected" : ""}>[${esc(t.code)}] ${esc(res.name)}</option>`;
+            .filter(tplItem => tplItem.active)
+            .map(tplItem => {
+              const res = resolveTemplateForLang(tplItem, docLang);
+              return `<option value="${esc(tplItem.code)}" ${tplItem.code === tpl.code ? "selected" : ""}>[${esc(tplItem.code)}] ${esc(res.name)}</option>`;
             })
             .join("")}
         </select>
@@ -751,7 +785,7 @@ function renderComposer(container, codeParam, savedValues = null) {
         </div>
 
         <!-- BOTÕES DEDICADOS EXCLUSIVOS PARA O IDIOMA DO DOCUMENTO -->
-        <div class="doc-emission-lang-box" style="margin-bottom:18px;padding:12px 16px;background:rgba(15,23,42,0.65);border:1px solid var(--border);border-radius:var(--radius-card);">
+        <div class="doc-emission-lang-box" style="margin-bottom:18px;padding:12px 16px;background:rgba(15,23,42,0.04);border:1px solid var(--border);border-radius:var(--radius-card);">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
             <div>
               <div style="font-weight:700;font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px;">
@@ -762,7 +796,7 @@ function renderComposer(container, codeParam, savedValues = null) {
                 ${esc(t("docEmissionLangHelp"))}
               </div>
             </div>
-            <div class="btn-group" role="group" aria-label="Document Emission Language" style="display:inline-flex;gap:6px;">
+            <div class="btn-group" role="group" aria-label="Document Emission Language" style="display:inline-flex;flex-wrap:wrap;gap:6px;">
               <button type="button" class="btn btn-sm ${docLang === 'pt' ? 'btn-primary' : 'btn-secondary'} btn-doc-lang-choice" data-doc-lang="pt" style="font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;">
                 ${esc(t("btnDocLangPt"))}
               </button>
@@ -792,11 +826,18 @@ function renderComposer(container, codeParam, savedValues = null) {
             )
             .join("")}
 
-          <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding-top:12px;border-top:1px solid var(--border);">
             <span style="font-size:12px;color:var(--muted);">
               Channel: <strong>#upd-official-documents</strong>
             </span>
-            <button type="submit" class="btn btn-primary">${esc(t("btnSubmitDraft"))}</button>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <button type="submit" class="btn ${canSelfApproveThis ? "btn-secondary" : "btn-primary"}">${esc(t("btnSubmitDraft"))}</button>
+              ${
+                canSelfApproveThis
+                  ? `<button type="button" id="btn-issue-and-approve" class="btn btn-primary">✅ ${lang === "pt" ? "Emitir & Contra-Assinar Agora" : "Issue & Counter-Sign Now"}</button>`
+                  : ""
+              }
+            </div>
           </div>
         </form>
       </section>
@@ -853,6 +894,9 @@ function renderComposer(container, codeParam, savedValues = null) {
   document.getElementById("composer-form").addEventListener("submit", e => {
     e.preventDefault();
     try {
+      container.querySelectorAll("[data-key]").forEach(inp => {
+        fieldValues[inp.getAttribute("data-key")] = inp.value;
+      });
       fieldValues._lang = docLang;
       const created = createDraftLocal(tpl.code, fieldValues);
       selectedInspectDocId = created.id;
@@ -861,6 +905,26 @@ function renderComposer(container, codeParam, savedValues = null) {
       alert(err.message);
     }
   });
+
+  const issueAndApproveBtn = document.getElementById("btn-issue-and-approve");
+  if (issueAndApproveBtn) {
+    issueAndApproveBtn.addEventListener("click", () => {
+      const form = document.getElementById("composer-form");
+      if (form && !form.reportValidity()) return;
+      try {
+        container.querySelectorAll("[data-key]").forEach(inp => {
+          fieldValues[inp.getAttribute("data-key")] = inp.value;
+        });
+        fieldValues._lang = docLang;
+        const created = createDraftLocal(tpl.code, fieldValues);
+        const approved = approveDocumentLocal(created.id);
+        selectedInspectDocId = approved.id;
+        window.location.hash = "#/";
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  }
 }
 
 // ─── View 3: Command Approvals Queue ──────────────────────────────────────────
@@ -868,7 +932,7 @@ function renderComposer(container, codeParam, savedValues = null) {
 function renderApprovals(container) {
   const officer = getCurrentOfficer();
   const pending = store.documents.filter(d => d.status === "PENDING");
-  const activeDoc = pending.find(d => d.id === selectedInspectDocId) || pending[0] || null;
+  const activeDoc = pending.find(d => Number(d.id) === Number(selectedInspectDocId)) || pending[0] || null;
   const lang = getLanguage();
 
   container.innerHTML = `
@@ -895,72 +959,72 @@ function renderApprovals(container) {
             <div class="panel-header">
               <h2 class="panel-title">${esc(t("approvalsTitle"))} (${pending.length})</h2>
             </div>
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Draft</th>
-                  <th>${esc(t("colIssuer"))}</th>
-                  <th>${esc(t("colApproval"))}</th>
-                  <th class="num">${esc(t("colActions"))}</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${pending
-                  .map(d => {
-                    const allowed = canApproveDocument(officer, d);
-                    const isSelf = Number(officer.id) === Number(d.issuer_id);
-                    const docLangBadge = (d.lang || "pt") === "en"
-                      ? '<span class="pill pill-pending" style="font-size:10px;padding:2px 6px;margin-left:6px;" title="English Document">🇺🇸 EN</span>'
-                      : '<span class="pill pill-approved" style="font-size:10px;padding:2px 6px;margin-left:6px;" title="Documento em Português">🇧🇷 PT</span>';
-                    const tplRes = resolveTemplateForLang(
-                      store.templates.find(t => t.code === d.template_code) || { code: d.template_code, name: d.template_name },
-                      d.lang || "pt"
-                    );
-                    return `
-                      <tr style="${activeDoc && d.id === activeDoc.id ? "background:var(--raised);" : ""}">
-                        <td>
-                          <div style="font-weight:600;display:flex;align-items:center;">
-                            <span>#${d.id} · [${esc(d.template_code)}]</span>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              ${pending
+                .map(d => {
+                  const allowed = canApproveDocument(officer, d);
+                  const isSelf = Number(officer.id) === Number(d.issuer_id);
+                  const isSelected = activeDoc && Number(d.id) === Number(activeDoc.id);
+                  const docLangBadge = (d.lang || "pt") === "en"
+                    ? '<span class="pill pill-pending" style="font-size:10px;padding:2px 6px;" title="English Document">🇺🇸 EN</span>'
+                    : '<span class="pill pill-approved" style="font-size:10px;padding:2px 6px;" title="Documento em Português">🇧🇷 PT</span>';
+                  const tplRes = resolveTemplateForLang(
+                    store.templates.find(tplItem => tplItem.code === d.template_code) || { code: d.template_code, name: d.template_name },
+                    d.lang || "pt"
+                  );
+                  return `
+                    <div style="padding:14px;border:1px solid ${isSelected ? "var(--text)" : "var(--border)"};border-radius:var(--radius-card);background:${isSelected ? "var(--raised)" : "var(--surface)"};display:flex;flex-direction:column;gap:10px;">
+                      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+                        <div>
+                          <div style="font-weight:600;font-size:14px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+                            <span>#${d.id} · [${esc(d.template_code)}] ${esc(tplRes.name || d.template_name)}</span>
                             ${docLangBadge}
                           </div>
-                          <div style="font-size:12px;color:var(--muted);">${esc(tplRes.name || d.template_name)}</div>
-                        </td>
-                        <td>
-                          <div>${esc(d.issuer_rank)} ${esc(d.issuer_name)}</div>
-                          <div class="mono" style="font-size:12px;color:var(--muted);">Badge #${esc(d.issuer_badge)}</div>
-                        </td>
-                        <td>
-                          <span class="pill pill-neutral">${d.category === "doj" ? "Commander+" : "Corporal+"}</span>
-                        </td>
-                        <td class="num">
-                          <div style="display:inline-flex;gap:6px;">
-                            <button class="btn btn-secondary" data-select-pending="${d.id}">${esc(t("btnViewDoc"))}</button>
-                            <button class="btn btn-primary" data-approve-id="${d.id}" ${!allowed ? "disabled" : ""} title="${!allowed && isSelf ? "Autoaprovação restrita ao High Command" : ""}">
-                              ${esc(t("btnApprove"))}
-                            </button>
-                            <button class="btn btn-danger" data-reject-id="${d.id}" ${!allowed ? "disabled" : ""}>
-                              ${esc(t("btnReject"))}
-                            </button>
+                          <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+                            ${esc(t("colIssuer"))}: <strong>${esc(d.issuer_rank)} ${esc(d.issuer_name)}</strong> <span class="mono">(Badge #${esc(d.issuer_badge)})</span>
                           </div>
-                        </td>
-                      </tr>
-                    `;
-                  })
-                  .join("")}
-              </tbody>
-            </table>
+                        </div>
+                        <span class="pill pill-neutral">${d.category === "doj" ? "Commander+" : "Corporal+"}</span>
+                      </div>
+
+                      <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:8px;border-top:1px solid var(--rule);">
+                        <button type="button" class="btn btn-primary" data-approve-id="${d.id}" ${!allowed ? "disabled" : ""} title="${!allowed && isSelf ? "Autoaprovação restrita ao High Command" : ""}">
+                          ✅ ${esc(t("btnApprove"))}
+                        </button>
+                        <button type="button" class="btn btn-danger" data-reject-id="${d.id}" ${!allowed ? "disabled" : ""}>
+                          ${esc(t("btnReject"))}
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-select-pending="${d.id}">
+                          ${esc(t("btnViewDoc"))}
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                })
+                .join("")}
+            </div>
           </section>
 
           <aside class="sheet-stage">
             ${
               activeDoc
                 ? `
-                  <div class="sheet-toolbar">
-                    <span><strong>Draft #${activeDoc.id} (${esc(activeDoc.template_code)})</strong></span>
-                    <span class="mono">${esc(activeDoc.issuer_name)} (#${esc(activeDoc.issuer_badge)})</span>
+                  <div class="sheet-toolbar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                    <div>
+                      <strong>Draft #${activeDoc.id} (${esc(activeDoc.template_code)})</strong>
+                      <span class="mono" style="margin-left:8px;">${esc(activeDoc.issuer_name)} (#${esc(activeDoc.issuer_badge)})</span>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                      <button type="button" class="btn btn-primary" data-approve-id="${activeDoc.id}" ${!canApproveDocument(officer, activeDoc) ? "disabled" : ""}>
+                        ✅ ${esc(t("btnApprove"))}
+                      </button>
+                      <button type="button" class="btn btn-danger" data-reject-id="${activeDoc.id}" ${!canApproveDocument(officer, activeDoc) ? "disabled" : ""}>
+                        ${esc(t("btnReject"))}
+                      </button>
+                    </div>
                   </div>
                   ${buildLiveSheetHtml(
-                    store.templates.find(t => t.code === activeDoc.template_code) || store.templates[0],
+                    store.templates.find(tplItem => tplItem.code === activeDoc.template_code) || store.templates[0],
                     activeDoc.data_json,
                     {
                       status: activeDoc.status,
@@ -1003,7 +1067,11 @@ function renderApprovals(container) {
       try {
         const approved = approveDocumentLocal(id);
         selectedInspectDocId = approved.id;
-        window.location.hash = "#/";
+        if (window.location.hash === "#/") {
+          renderApp();
+        } else {
+          window.location.hash = "#/";
+        }
       } catch (e) {
         alert(e.message);
       }
@@ -1013,7 +1081,10 @@ function renderApprovals(container) {
   container.querySelectorAll("[data-reject-id]").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-reject-id"));
-      const reason = prompt("Reason for rejecting this draft:", "Insufficient probable cause narrative.");
+      const reason = prompt(
+        lang === "pt" ? "Justificativa para rejeitar esta minuta:" : "Reason for rejecting this draft:",
+        lang === "pt" ? "Narrativa de causa provável insuficiente." : "Insufficient probable cause narrative."
+      );
       if (!reason) return;
       try {
         rejectDocumentLocal(id, reason);
@@ -1270,7 +1341,7 @@ let editingTplCode = "SW";
 
 function renderTemplatesAdmin(container) {
   const caller = getCurrentOfficer();
-  const tpl = store.templates.find(t => t.code === editingTplCode) || store.templates[0];
+  const tpl = store.templates.find(tplItem => tplItem.code === editingTplCode) || store.templates[0];
   const sampleValues = {};
   tpl.fields.forEach(f => (sampleValues[f.key] = f.placeholder || ""));
 
@@ -1282,7 +1353,7 @@ function renderTemplatesAdmin(container) {
       </div>
       <div class="header-actions">
         <select id="admin-tpl-select" class="select" style="width:320px;">
-          ${store.templates.map(t => `<option value="${esc(t.code)}" ${t.code === tpl.code ? "selected" : ""}>[${esc(t.code)}] ${esc(t.name)}</option>`).join("")}
+          ${store.templates.map(tplItem => `<option value="${esc(tplItem.code)}" ${tplItem.code === tpl.code ? "selected" : ""}>[${esc(tplItem.code)}] ${esc(tplItem.name)}</option>`).join("")}
         </select>
       </div>
     </div>

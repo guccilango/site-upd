@@ -197,7 +197,17 @@ export function getAuthenticatedOfficer() {
   try {
     const sess = JSON.parse(raw);
     const inStore = store.officers.find(o => String(o.discord_id) === String(sess.discord_id));
-    return inStore || sess;
+    const officer = inStore || sess;
+    officer.status = "active";
+    if (String(officer.discord_id) === String(_INTERNAL.ownerId) || sess.is_admin || officer.is_admin) {
+      officer.is_admin = 1;
+      if ((Number(officer.rank_level) || 0) < 11) {
+        officer.rank_id = 11;
+        officer.rank_name = officer.rank_name || "Commander";
+        officer.rank_level = 11;
+      }
+    }
+    return officer;
   } catch (_) {
     return null;
   }
