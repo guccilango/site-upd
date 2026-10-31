@@ -1,7 +1,10 @@
 import {
   store,
   getCurrentOfficer,
-  setActiveDemoOfficer,
+  logoutOfficer,
+  loginOwnerDirect,
+  getDiscordOAuthUrl,
+  handleDiscordOAuthCallbackIfPresent,
   canIssueTemplate,
   canApproveDocument,
   createDraftLocal,
@@ -10,8 +13,7 @@ import {
   revokeDocumentLocal,
   saveOfficerLocal,
   saveRankLocal,
-  saveTemplateLocal,
-  verifyControlNoLocal
+  saveTemplateLocal
 } from "./api.js";
 
 function esc(str) {
@@ -32,15 +34,18 @@ function statusPill(status) {
 }
 
 function renderFilledBodyHtml(bodyTemplate, vars) {
-  const safeReplaced = String(bodyTemplate || "").replace(/\{([a-zA-Z0-9_]+)\}/g, (_, k) => {
+  return String(bodyTemplate || "").replace(/\{([a-zA-Z0-9_]+)\}/g, (_, k) => {
     const val = vars[k];
     return val !== undefined && val !== "" ? esc(val) : `[${esc(k)}]`;
   });
-  return safeReplaced;
 }
 
 export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
-  const officer = docMeta.issuer || getCurrentOfficer();
+  const officer = docMeta.issuer || getCurrentOfficer() || {
+    rp_name: "Command Officer",
+    badge: "01",
+    rank_name: "Commander"
+  };
   const status = docMeta.status || "PENDING";
   const ctrl = docMeta.control_no || "DRAFT-PREVIEW";
   const dateStr = (docMeta.approved_at || docMeta.created_at || new Date().toISOString()).slice(0, 10);
@@ -49,7 +54,7 @@ export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
     issuer_name: officer.rp_name,
     issuer_badge: officer.badge,
     issuer_rank: officer.rank_name,
-    issuer_division: officer.division || "Patrol Division"
+    issuer_division: officer.division || "Command Division"
   };
   const bodyHtml = renderFilledBodyHtml(template.body, vars);
   const reqRankLabel = template.category === "doj" ? "COMMANDER+ (LVL 11+)" : "CORPORAL+ (LVL 5+)";
@@ -136,7 +141,142 @@ export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
   `;
 }
 
-// ─── Router & Shell Rendering ─────────────────────────────────────────────────
+// ─── Login Screen (Mandatory Discord / Owner Auth) ────────────────────────────
+
+let authErrorMessage = "";
+
+function renderLoginScreen() {
+  const sidebar = document.getElementById("sidebar-nav");
+  const main = document.getElementById("main-canvas");
+
+  sidebar.innerHTML = `
+    <div>
+      <div class="brand-switcher">
+        <img class="brand-crest" src="./assets/opacidade2.png" alt="UPD Crest" />
+        <div class="brand-meta">
+          <div class="brand-title">UPD Records Bureau</div>
+          <div class="brand-sub">Los Santos · Restricted Portal</div>
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">Public Services</div>
+        <ul class="nav-list">
+          <li>
+            <a class="nav-btn" href="./verify.html" style="text-decoration:none;">
+              <span class="nav-btn-left">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                <span>Public QR Verifier</span>
+              </span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div style="font-size:12px;color:var(--muted);">
+        Guild ID: <span class="mono">${esc(window.UPD_CONFIG.GUILD_ID)}</span><br/>
+        Supervisor Role: <span class="mono">${esc(window.UPD_CONFIG.SUPERVISOR_ROLE_ID)}</span>
+      </div>
+    </div>
+  `;
+
+  main.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Unified Police Department — Command & Records Authentication</h1>
+        <p class="page-sub">Restricted to authenticated Discord Command / Supervisory personnel (Role ${esc(window.UPD_CONFIG.SUPERVISOR_ROLE_ID)})</p>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-secondary" href="./verify.html">Public Document Verification</a>
+      </div>
+    </div>
+
+    ${
+      authErrorMessage
+        ? `<div class="notice-bar" style="background:var(--pill-negative-bg);color:var(--pill-negative-ink);border-color:#f8c6c0;">
+             <span>${esc(authErrorMessage)}</span>
+           </div>`
+        : ""
+    }
+
+    <div class="grid-asymmetric">
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Discord OAuth2 Authentication</h2>
+            <div class="panel-sub">Verifies your membership in Guild ${esc(window.UPD_CONFIG.GUILD_ID)} and Supervisory Role</div>
+          </div>
+        </div>
+        <p style="margin:0 0 16px;color:var(--muted);">
+          Sign in with your Discord account. Only members holding the UPD Command / Supervision role (<span class="mono">${esc(window.UPD_CONFIG.SUPERVISOR_ROLE_ID)}</span>) or admitted by Command Staff are granted access.
+        </p>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          <a class="btn btn-primary" href="${esc(getDiscordOAuthUrl())}">
+            Sign in with Discord (Direct OAuth2)
+          </a>
+          <a class="btn btn-secondary" href="${esc(window.UPD_CONFIG.API_URL)}/api/auth/login">
+            Sign in via Bot Host API (${esc(window.UPD_CONFIG.API_URL)})
+          </a>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Direct Command / Owner Access</h2>
+            <div class="panel-sub">Direct credential login for Owner (${esc(window.UPD_CONFIG.OWNER_DISCORD_ID)}) & Supervisors</div>
+          </div>
+        </div>
+        <form id="owner-login-form">
+          <div class="field-group">
+            <label class="field-label" for="login-discord-id">Discord User ID</label>
+            <input class="input mono" id="login-discord-id" name="discord_id" value="${esc(window.UPD_CONFIG.OWNER_DISCORD_ID)}" required />
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">
+            <div class="field-group">
+              <label class="field-label" for="login-rp-name">Officer Roleplay Name (Cursive Signature)</label>
+              <input class="input" id="login-rp-name" name="rp_name" placeholder="Chief Gucci Lango" required />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="login-badge">Badge #</label>
+              <input class="input mono" id="login-badge" name="badge" value="01" required />
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="login-access-key">
+              <span>Command Supervision Key</span>
+              <span class="field-hint mono">Role ID or Master Key</span>
+            </label>
+            <input class="input mono" id="login-access-key" name="access_key" type="password" placeholder="1501714073744572456" required />
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">
+            Authenticate Command Session
+          </button>
+        </form>
+      </aside>
+    </div>
+  `;
+
+  document.getElementById("owner-login-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      authErrorMessage = "";
+      loginOwnerDirect(
+        fd.get("discord_id"),
+        fd.get("access_key"),
+        fd.get("rp_name"),
+        fd.get("badge")
+      );
+      renderApp();
+    } catch (err) {
+      authErrorMessage = err.message;
+      renderLoginScreen();
+    }
+  });
+}
+
+// ─── Authenticated Sidebar & Views ────────────────────────────────────────────
 
 let currentDocFilter = "all";
 let selectedInspectDocId = null;
@@ -220,7 +360,7 @@ function renderSidebar() {
             </button>
           </li>
           <li>
-            <a class="nav-btn" href="./verify.html?n=UPD-SW-2026-0001" style="text-decoration:none;">
+            <a class="nav-btn" href="./verify.html" style="text-decoration:none;">
               <span class="nav-btn-left">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                 <span>Public QR Verifier</span>
@@ -239,10 +379,11 @@ function renderSidebar() {
         </div>
         <div class="officer-rank">${esc(officer.rank_name)} · Lvl ${officer.rank_level}${officer.is_admin ? " · Admin" : ""}</div>
         <div class="officer-sig-preview" title="Auto-generated cursive signature">${esc(officer.rp_name)}</div>
+        <div class="mono" style="font-size:11px;color:var(--muted);margin-top:4px;">ID: ${esc(officer.discord_id)}</div>
       </div>
-      <a class="btn btn-secondary" href="${window.UPD_CONFIG.API_URL}/api/auth/login" style="justify-content:center;">
-        Connect Discord OAuth2
-      </a>
+      <button class="btn btn-secondary" id="btn-logout" type="button" style="justify-content:center;">
+        Sign Out
+      </button>
     </div>
   `;
 
@@ -253,8 +394,10 @@ function renderSidebar() {
     });
   });
 
-    // Seleção de perfil de teste removida
-  }
+  document.getElementById("btn-logout").addEventListener("click", () => {
+    logoutOfficer();
+    renderApp();
+  });
 }
 
 // ─── View 1: Overview & Operational Ledger ────────────────────────────────────
@@ -267,12 +410,6 @@ function renderOverview(container) {
   const approvedInternal = docs.filter(d => d.status === "APPROVED" && d.category === "internal");
   const activeOfficers = store.officers.filter(o => o.status === "active");
 
-  // Reconcile assertion (taste-skill §2.1 Data that tells the truth)
-  console.assert(
-    pendingDocs.length + docs.filter(d => d.status !== "PENDING").length === docs.length,
-    "Document status counts must reconcile to total documents"
-  );
-
   const filteredDocs = docs.filter(d => {
     if (currentDocFilter === "pending") return d.status === "PENDING";
     if (currentDocFilter === "approved") return d.status === "APPROVED";
@@ -281,21 +418,13 @@ function renderOverview(container) {
   });
 
   container.innerHTML = `
-    ${
-      officer.status !== "active"
-        ? `<div class="notice-bar">
-             <span>Your officer profile is currently <strong>${esc(officer.status)}</strong>. An administrator must admit your account before you can issue or counter-sign records.</span>
-           </div>`
-        : ""
-    }
-
     <div class="page-header">
       <div>
         <h1 class="page-title">Records & Judicial Filings Ledger</h1>
         <p class="page-sub">Unified Police Department · Standardized US-Letter emission, hierarchical counter-signature, and Fivemanage Registry</p>
       </div>
       <div class="header-actions">
-        <a class="btn btn-secondary" href="./verify.html?n=UPD-SW-2026-0001">Verify Control No.</a>
+        <a class="btn btn-secondary" href="./verify.html">Verify Control No.</a>
         <button class="btn btn-primary" id="btn-new-filing">New Official Document</button>
       </div>
     </div>
@@ -338,60 +467,68 @@ function renderOverview(container) {
           </div>
         </div>
 
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Control No. / ID</th>
-                <th>Document & Series</th>
-                <th>Submitting Officer</th>
-                <th>Status</th>
-                <th class="num">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredDocs
-                .map(d => {
-                  const canApp = d.status === "PENDING" && canApproveDocument(officer, d);
-                  return `
+        ${
+          filteredDocs.length === 0
+            ? `<div style="border:1px dashed var(--control);border-radius:var(--radius-card);padding:18px;color:var(--muted);font-size:13px;">
+                 No official documents issued yet in this filter. Select a template on the right or click <strong>New Official Document</strong> to compose.
+               </div>`
+            : `
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
                     <tr>
-                      <td class="mono" style="font-weight:500;">
-                        ${d.control_no ? `<a href="./verify.html?n=${encodeURIComponent(d.control_no)}" style="color:var(--text);text-decoration:underline;">${esc(d.control_no)}</a>` : `Draft #${d.id}`}
-                      </td>
-                      <td>
-                        <div style="font-weight:500;">[${esc(d.template_code)}] ${esc(d.template_name)}</div>
-                        <div style="font-size:12px;color:var(--muted);">
-                          ${d.category === "doj" ? "DOJ Judicial Filing (Commander+)" : "Internal Record (Corporal+)"} · ${esc(d.created_at.slice(0, 10))}
-                        </div>
-                      </td>
-                      <td>
-                        <div>${esc(d.issuer_rank)} ${esc(d.issuer_name)}</div>
-                        <div class="mono" style="font-size:12px;color:var(--muted);">Badge #${esc(d.issuer_badge)}</div>
-                      </td>
-                      <td>
-                        ${statusPill(d.status)}
-                        ${d.approver_name ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">Signed: ${esc(d.approver_rank)} ${esc(d.approver_name)}</div>` : ""}
-                      </td>
-                      <td class="num">
-                        <div style="display:inline-flex;gap:6px;justify-content:flex-end;">
-                          <button class="btn btn-secondary" data-inspect="${d.id}">View Sheet</button>
-                          ${canApp ? `<button class="btn btn-primary" data-quick-approve="${d.id}">Counter-Sign</button>` : ""}
-                        </div>
-                      </td>
+                      <th>Control No. / ID</th>
+                      <th>Document & Series</th>
+                      <th>Submitting Officer</th>
+                      <th>Status</th>
+                      <th class="num">Action</th>
                     </tr>
-                  `;
-                })
-                .join("")}
-            </tbody>
-          </table>
-        </div>
+                  </thead>
+                  <tbody>
+                    ${filteredDocs
+                      .map(d => {
+                        const canApp = d.status === "PENDING" && canApproveDocument(officer, d);
+                        return `
+                          <tr>
+                            <td class="mono" style="font-weight:500;">
+                              ${d.control_no ? `<a href="./verify.html?n=${encodeURIComponent(d.control_no)}" style="color:var(--text);text-decoration:underline;">${esc(d.control_no)}</a>` : `Draft #${d.id}`}
+                            </td>
+                            <td>
+                              <div style="font-weight:500;">[${esc(d.template_code)}] ${esc(d.template_name)}</div>
+                              <div style="font-size:12px;color:var(--muted);">
+                                ${d.category === "doj" ? "DOJ Judicial Filing (Commander+)" : "Internal Record (Corporal+)"} · ${esc(d.created_at.slice(0, 10))}
+                              </div>
+                            </td>
+                            <td>
+                              <div>${esc(d.issuer_rank)} ${esc(d.issuer_name)}</div>
+                              <div class="mono" style="font-size:12px;color:var(--muted);">Badge #${esc(d.issuer_badge)}</div>
+                            </td>
+                            <td>
+                              ${statusPill(d.status)}
+                              ${d.approver_name ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">Signed: ${esc(d.approver_rank)} ${esc(d.approver_name)}</div>` : ""}
+                            </td>
+                            <td class="num">
+                              <div style="display:inline-flex;gap:6px;justify-content:flex-end;">
+                                <button class="btn btn-secondary" data-inspect="${d.id}">View Sheet</button>
+                                ${canApp ? `<button class="btn btn-primary" data-quick-approve="${d.id}">Counter-Sign</button>` : ""}
+                              </div>
+                            </td>
+                          </tr>
+                        `;
+                      })
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>
+            `
+        }
       </section>
 
       <aside class="panel">
         <div class="panel-header">
           <div>
             <h2 class="panel-title">Standardized US Templates</h2>
-            <div class="panel-sub">Select a template to open composer or Discord modal</div>
+            <div class="panel-sub">Select a template to open composer</div>
           </div>
         </div>
 
@@ -414,7 +551,7 @@ function renderOverview(container) {
                     <td>
                       <div style="font-weight:500;">${esc(t.name)}</div>
                       <div style="font-size:12px;color:var(--muted);">
-                        ${t.category === "doj" ? "DOJ · Approver: Commander+" : "Internal · Approver: Corporal+"} · ${t.channel === "modal" ? "Discord Modal / Web" : "Web Composer"}
+                        ${t.category === "doj" ? "DOJ · Approver: Commander+" : "Internal · Approver: Corporal+"}
                       </div>
                     </td>
                     <td class="num">
@@ -492,7 +629,6 @@ function renderInspectModal(container) {
           <h2 class="panel-title">Official Sheet Inspection — ${esc(doc.control_no || `Draft #${doc.id}`)}</h2>
           <div class="panel-sub">
             Issued by ${esc(doc.issuer_rank)} ${esc(doc.issuer_name)} (#${esc(doc.issuer_badge)})
-            ${doc.png_url ? ` · Fivemanage URL: <span class="mono">${esc(doc.png_url)}</span>` : ""}
           </div>
         </div>
         <div style="display:flex;gap:8px;">
@@ -555,7 +691,7 @@ function renderComposer(container, codeParam) {
   const tpl = store.templates.find(t => t.code === (codeParam || "SW").toUpperCase()) || store.templates[0];
   const fieldValues = {};
   tpl.fields.forEach(f => {
-    fieldValues[f.key] = f.placeholder || "";
+    fieldValues[f.key] = "";
   });
 
   container.innerHTML = `
@@ -583,7 +719,6 @@ function renderComposer(container, codeParam) {
             <h2 class="panel-title">Filing Parameters</h2>
             <div class="panel-sub">Submitting as ${esc(officer.rank_name)} ${esc(officer.rp_name)} (Badge #${esc(officer.badge)})</div>
           </div>
-          <button class="btn btn-secondary" id="btn-clear-fields" type="button">Clear Sample Text</button>
         </div>
 
         <form id="composer-form">
@@ -597,8 +732,8 @@ function renderComposer(container, codeParam) {
                 </label>
                 ${
                   f.type === "textarea"
-                    ? `<textarea class="textarea" id="fld-${esc(f.key)}" data-key="${esc(f.key)}" maxlength="${f.max_length || 3500}" required>${esc(fieldValues[f.key])}</textarea>`
-                    : `<input class="input" id="fld-${esc(f.key)}" data-key="${esc(f.key)}" type="text" maxlength="${f.max_length || 250}" value="${esc(fieldValues[f.key])}" required />`
+                    ? `<textarea class="textarea" id="fld-${esc(f.key)}" data-key="${esc(f.key)}" maxlength="${f.max_length || 3500}" placeholder="${esc(f.placeholder || "")}" required></textarea>`
+                    : `<input class="input" id="fld-${esc(f.key)}" data-key="${esc(f.key)}" type="text" maxlength="${f.max_length || 250}" placeholder="${esc(f.placeholder || "")}" required />`
                 }
               </div>
             `
@@ -607,7 +742,7 @@ function renderComposer(container, codeParam) {
 
           <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border);">
             <span style="font-size:12px;color:var(--muted);">
-              Channel: <strong>${tpl.channel === "modal" ? "Discord Modal (/emitirdocumento) & Web" : "Web Portal Composer"}</strong>
+              Channel: <strong>#${esc(window.UPD_CONFIG.GUILD_ID)} · Official Docs</strong>
             </span>
             <button type="submit" class="btn btn-primary">Submit Draft for Command Approval</button>
           </div>
@@ -617,7 +752,7 @@ function renderComposer(container, codeParam) {
       <aside class="sheet-stage">
         <div class="sheet-toolbar">
           <span><strong>Live US-Letter Sheet (8.5 × 11 in)</strong> · Updates as you type</span>
-          <span class="mono">Watermark: opacidade2.png (7.5%) · Seal: selo.png</span>
+          <span class="mono">Watermark: opacidade2.png · Seal: selo.png</span>
         </div>
         <div id="live-sheet-holder">
           ${buildLiveSheetHtml(tpl, fieldValues)}
@@ -636,14 +771,6 @@ function renderComposer(container, codeParam) {
       fieldValues[inp.getAttribute("data-key")] = inp.value;
       holder.innerHTML = buildLiveSheetHtml(tpl, fieldValues);
     });
-  });
-
-  document.getElementById("btn-clear-fields").addEventListener("click", () => {
-    container.querySelectorAll("[data-key]").forEach(inp => {
-      inp.value = "";
-      fieldValues[inp.getAttribute("data-key")] = "";
-    });
-    holder.innerHTML = buildLiveSheetHtml(tpl, fieldValues);
   });
 
   document.getElementById("composer-form").addEventListener("submit", e => {
@@ -864,11 +991,11 @@ function renderOfficers(container) {
         <form id="officer-form">
           <div class="field-group">
             <label class="field-label">Discord User ID</label>
-            <input class="input mono" name="discord_id" placeholder="381920194810294099" required />
+            <input class="input mono" name="discord_id" placeholder="Discord Snowflake ID" required />
           </div>
           <div class="field-group">
             <label class="field-label">Roleplay Full Name (Used for Auto-Signature)</label>
-            <input class="input" name="rp_name" placeholder="Detective Robert Vance" required />
+            <input class="input" name="rp_name" placeholder="Officer Full Name" required />
           </div>
           <div class="field-group">
             <label class="field-label">Badge Number</label>
@@ -899,7 +1026,7 @@ function renderOfficers(container) {
 
   container.querySelectorAll("[data-admit]").forEach(btn => {
     btn.addEventListener("click", () => {
-      const o = store.officers.find(x => x.discord_id === btn.getAttribute("data-admit"));
+      const o = store.officers.find(x => String(x.discord_id) === String(btn.getAttribute("data-admit")));
       if (o) {
         saveOfficerLocal({ ...o, status: "active" });
         renderApp();
@@ -909,7 +1036,7 @@ function renderOfficers(container) {
 
   container.querySelectorAll("[data-suspend]").forEach(btn => {
     btn.addEventListener("click", () => {
-      const o = store.officers.find(x => x.discord_id === btn.getAttribute("data-suspend"));
+      const o = store.officers.find(x => String(x.discord_id) === String(btn.getAttribute("data-suspend")));
       if (o) {
         saveOfficerLocal({ ...o, status: "suspended" });
         renderApp();
@@ -1005,7 +1132,7 @@ function renderRanks(container) {
           </div>
           <div class="field-group">
             <label class="field-label">Discord Role ID</label>
-            <input class="input mono" name="discord_role_id" placeholder="120001000000000099" />
+            <input class="input mono" name="discord_role_id" placeholder="1501714073744572456" />
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" ${!caller.is_admin ? "disabled" : ""}>
             Save Rank Level
@@ -1143,6 +1270,12 @@ function renderTemplatesAdmin(container) {
 // ─── Main App Dispatcher ──────────────────────────────────────────────────────
 
 export function renderApp() {
+  const officer = getCurrentOfficer();
+  if (!officer) {
+    renderLoginScreen();
+    return;
+  }
+
   renderSidebar();
   const main = document.getElementById("main-canvas");
   const hash = window.location.hash || "#/";
@@ -1164,12 +1297,17 @@ export function renderApp() {
 }
 
 window.addEventListener("hashchange", renderApp);
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
   const menuBtn = document.getElementById("mobile-menu-btn");
   if (menuBtn) {
     menuBtn.addEventListener("click", () => {
       document.getElementById("sidebar-nav").classList.toggle("open");
     });
+  }
+  try {
+    await handleDiscordOAuthCallbackIfPresent();
+  } catch (err) {
+    authErrorMessage = err.message;
   }
   renderApp();
 });
