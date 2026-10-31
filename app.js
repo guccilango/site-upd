@@ -14,7 +14,7 @@ import {
   saveOfficerLocal,
   saveRankLocal,
   saveTemplateLocal
-} from "./api.js";
+} from "./api.js?v=4";
 import {
   DOC_I18N,
   getLanguage,
@@ -23,7 +23,7 @@ import {
   setDocumentLanguage,
   t,
   resolveTemplateForLang
-} from "./i18n.js";
+} from "./i18n.js?v=4";
 
 function esc(str) {
   return String(str ?? "")
