@@ -19,6 +19,8 @@ import {
   DOC_I18N,
   getLanguage,
   setLanguage,
+  getDocumentLanguage,
+  setDocumentLanguage,
   t,
   resolveTemplateForLang
 } from "./i18n.js";
@@ -57,7 +59,7 @@ export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
   const ctrl = docMeta.control_no || "DRAFT-PREVIEW";
   const dateStr = (docMeta.approved_at || docMeta.created_at || new Date().toISOString()).slice(0, 10);
 
-  const docLang = docMeta.lang || fieldValues._lang || getLanguage() || "pt";
+  const docLang = docMeta.lang || fieldValues._lang || getDocumentLanguage() || "pt";
   const chrome = DOC_I18N[docLang] || DOC_I18N.pt;
   const resolvedTpl = resolveTemplateForLang(template, docLang);
 
@@ -478,15 +480,21 @@ function renderOverview(container) {
                         const canApp = d.status === "PENDING" && canApproveDocument(officer, d);
                         const tplResolved = resolveTemplateForLang(
                           store.templates.find(t => t.code === d.template_code) || { code: d.template_code, name: d.template_name },
-                          d.lang || lang
+                          d.lang || "pt"
                         );
+                        const docLangBadge = (d.lang || "pt") === "en"
+                          ? '<span class="pill pill-pending" style="font-size:10px;padding:2px 6px;margin-left:6px;" title="English Document">🇺🇸 EN</span>'
+                          : '<span class="pill pill-approved" style="font-size:10px;padding:2px 6px;margin-left:6px;" title="Documento em Português">🇧🇷 PT</span>';
                         return `
                           <tr>
                             <td class="mono" style="font-weight:500;">
                               ${d.control_no ? `<a href="./verify.html?n=${encodeURIComponent(d.control_no)}" style="color:var(--text);text-decoration:underline;">${esc(d.control_no)}</a>` : `Draft #${d.id}`}
                             </td>
                             <td>
-                              <div style="font-weight:500;">[${esc(d.template_code)}] ${esc(tplResolved.name || d.template_name)}</div>
+                              <div style="font-weight:500;display:flex;align-items:center;">
+                                <span>[${esc(d.template_code)}] ${esc(tplResolved.name || d.template_name)}</span>
+                                ${docLangBadge}
+                              </div>
                               <div style="font-size:12px;color:var(--muted);">
                                 ${d.category === "doj" ? "DOJ Judicial Filing (Commander+)" : "Internal Record (Corporal+)"} · ${esc(d.created_at.slice(0, 10))}
                               </div>
@@ -636,6 +644,7 @@ function renderInspectModal(container) {
           control_no: doc.control_no,
           created_at: doc.created_at,
           approved_at: doc.approved_at,
+          lang: doc.lang || doc.data_json?._lang || "pt",
           issuer: { rp_name: doc.issuer_name, badge: doc.issuer_badge, rank_name: doc.issuer_rank },
           approver_name: doc.approver_name,
           approver_badge: doc.approver_badge,
@@ -679,20 +688,31 @@ function renderInspectModal(container) {
 
 // ─── View 2: Split Document Composer + Live US-Letter Sheet ───────────────────
 
-let currentComposerDocLang = null;
-
-function renderComposer(container, codeParam) {
+function renderComposer(container, codeParam, savedValues = null) {
   const officer = getCurrentOfficer();
-  if (!currentComposerDocLang) {
-    currentComposerDocLang = getLanguage() || "pt";
+
+  // If query string has ?lang=pt or ?lang=en, configure document language
+  const hashParts = (window.location.hash || "").split("?");
+  if (hashParts[1]) {
+    const p = new URLSearchParams(hashParts[1]);
+    const requested = p.get("lang");
+    if (requested === "pt" || requested === "en") {
+      setDocumentLanguage(requested);
+    }
   }
+
+  const docLang = getDocumentLanguage();
   const rawTpl = store.templates.find(t => t.code === (codeParam || "SW").toUpperCase()) || store.templates[0];
-  const tpl = resolveTemplateForLang(rawTpl, currentComposerDocLang);
-  const fieldValues = { _lang: currentComposerDocLang };
+  const tpl = resolveTemplateForLang(rawTpl, docLang);
+  
+  const fieldValues = { _lang: docLang, ...(savedValues || {}) };
   tpl.fields.forEach(f => {
-    fieldValues[f.key] = "";
+    if (fieldValues[f.key] === undefined) {
+      fieldValues[f.key] = "";
+    }
   });
-  const lang = getLanguage();
+
+  const lang = getLanguage(); // Site UI language
 
   container.innerHTML = `
     <div class="page-header">
@@ -706,18 +726,14 @@ function renderComposer(container, codeParam) {
         </p>
       </div>
       <div class="header-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:700;">
+        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:700;" title="${esc(t("siteLangNotice"))}">
           ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
         </button>
-        <select id="doc-lang-select" class="select" style="width:230px;font-weight:600;">
-          <option value="pt" ${currentComposerDocLang === "pt" ? "selected" : ""}>${esc(t("docLangPt"))}</option>
-          <option value="en" ${currentComposerDocLang === "en" ? "selected" : ""}>${esc(t("docLangEn"))}</option>
-        </select>
         <select id="tpl-picker" class="select" style="width:280px;">
           ${store.templates
             .filter(t => t.active)
             .map(t => {
-              const res = resolveTemplateForLang(t, currentComposerDocLang);
+              const res = resolveTemplateForLang(t, docLang);
               return `<option value="${esc(t.code)}" ${t.code === tpl.code ? "selected" : ""}>[${esc(t.code)}] ${esc(res.name)}</option>`;
             })
             .join("")}
@@ -727,10 +743,33 @@ function renderComposer(container, codeParam) {
 
     <div class="composer-layout">
       <section class="panel">
-        <div class="panel-header">
+        <div class="panel-header" style="margin-bottom:14px;">
           <div>
             <h2 class="panel-title">${esc(tpl.name)}</h2>
-            <div class="panel-sub">${esc(officer.rank_name)} ${esc(officer.rp_name)} (Badge #${esc(officer.badge)}) · ${esc(t("docLangLabel"))}: <strong>${currentComposerDocLang === 'pt' ? 'Português' : 'English'}</strong></div>
+            <div class="panel-sub">${esc(officer.rank_name)} ${esc(officer.rp_name)} (Badge #${esc(officer.badge)})</div>
+          </div>
+        </div>
+
+        <!-- BOTÕES DEDICADOS EXCLUSIVOS PARA O IDIOMA DO DOCUMENTO -->
+        <div class="doc-emission-lang-box" style="margin-bottom:18px;padding:12px 16px;background:rgba(15,23,42,0.65);border:1px solid var(--border);border-radius:var(--radius-card);">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div>
+              <div style="font-weight:700;font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px;">
+                <span>📄</span>
+                <span>${esc(t("docEmissionLangLabel"))}</span>
+              </div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+                ${esc(t("docEmissionLangHelp"))}
+              </div>
+            </div>
+            <div class="btn-group" role="group" aria-label="Document Emission Language" style="display:inline-flex;gap:6px;">
+              <button type="button" class="btn btn-sm ${docLang === 'pt' ? 'btn-primary' : 'btn-secondary'} btn-doc-lang-choice" data-doc-lang="pt" style="font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;">
+                ${esc(t("btnDocLangPt"))}
+              </button>
+              <button type="button" class="btn btn-sm ${docLang === 'en' ? 'btn-primary' : 'btn-secondary'} btn-doc-lang-choice" data-doc-lang="en" style="font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;">
+                ${esc(t("btnDocLangEn"))}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -745,8 +784,8 @@ function renderComposer(container, codeParam) {
                 </label>
                 ${
                   f.type === "textarea"
-                    ? `<textarea class="textarea" id="fld-${esc(f.key)}" data-key="${esc(f.key)}" maxlength="${f.max_length || 3500}" placeholder="${esc(f.placeholder || "")}" required></textarea>`
-                    : `<input class="input" id="fld-${esc(f.key)}" data-key="${esc(f.key)}" type="text" maxlength="${f.max_length || 250}" placeholder="${esc(f.placeholder || "")}" required />`
+                    ? `<textarea class="textarea" id="fld-${esc(f.key)}" data-key="${esc(f.key)}" maxlength="${f.max_length || 3500}" placeholder="${esc(f.placeholder || "")}" required>${esc(fieldValues[f.key] || "")}</textarea>`
+                    : `<input class="input" id="fld-${esc(f.key)}" data-key="${esc(f.key)}" type="text" maxlength="${f.max_length || 250}" placeholder="${esc(f.placeholder || "")}" value="${esc(fieldValues[f.key] || "")}" required />`
                 }
               </div>
             `
@@ -765,25 +804,38 @@ function renderComposer(container, codeParam) {
       <aside class="sheet-stage">
         <div class="sheet-toolbar">
           <span><strong>${esc(t("liveStageTitle"))}</strong> · ${esc(t("liveStageSub"))}</span>
-          <span class="mono">${currentComposerDocLang.toUpperCase()} · Watermark · Seal</span>
+          <span class="mono">${docLang.toUpperCase()} · Watermark · Seal</span>
         </div>
         <div id="live-sheet-holder">
-          ${buildLiveSheetHtml(rawTpl, fieldValues, { lang: currentComposerDocLang })}
+          ${buildLiveSheetHtml(rawTpl, fieldValues, { lang: docLang })}
         </div>
       </aside>
     </div>
   `;
 
+  // Site language switcher (switches website UI interface only)
   document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
     btn.addEventListener("click", () => {
+      container.querySelectorAll("[data-key]").forEach(inp => {
+        fieldValues[inp.getAttribute("data-key")] = inp.value;
+      });
       setLanguage(getLanguage() === "pt" ? "en" : "pt");
       renderApp();
     });
   });
 
-  document.getElementById("doc-lang-select").addEventListener("change", e => {
-    currentComposerDocLang = e.target.value;
-    renderComposer(container, tpl.code);
+  // Dedicated Document Emission Language buttons (switches document language and sheet only)
+  container.querySelectorAll(".btn-doc-lang-choice").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const selected = btn.getAttribute("data-doc-lang");
+      if (selected === docLang) return;
+      container.querySelectorAll("[data-key]").forEach(inp => {
+        fieldValues[inp.getAttribute("data-key")] = inp.value;
+      });
+      fieldValues._lang = selected;
+      setDocumentLanguage(selected);
+      renderComposer(container, tpl.code, fieldValues);
+    });
   });
 
   document.getElementById("tpl-picker").addEventListener("change", e => {
@@ -794,14 +846,14 @@ function renderComposer(container, codeParam) {
   container.querySelectorAll("[data-key]").forEach(inp => {
     inp.addEventListener("input", () => {
       fieldValues[inp.getAttribute("data-key")] = inp.value;
-      holder.innerHTML = buildLiveSheetHtml(rawTpl, fieldValues, { lang: currentComposerDocLang });
+      holder.innerHTML = buildLiveSheetHtml(rawTpl, fieldValues, { lang: docLang });
     });
   });
 
   document.getElementById("composer-form").addEventListener("submit", e => {
     e.preventDefault();
     try {
-      fieldValues._lang = currentComposerDocLang;
+      fieldValues._lang = docLang;
       const created = createDraftLocal(tpl.code, fieldValues);
       selectedInspectDocId = created.id;
       window.location.hash = "#/aprovacoes";
@@ -857,14 +909,20 @@ function renderApprovals(container) {
                   .map(d => {
                     const allowed = canApproveDocument(officer, d);
                     const isSelf = Number(officer.id) === Number(d.issuer_id);
+                    const docLangBadge = (d.lang || "pt") === "en"
+                      ? '<span class="pill pill-pending" style="font-size:10px;padding:2px 6px;margin-left:6px;" title="English Document">🇺🇸 EN</span>'
+                      : '<span class="pill pill-approved" style="font-size:10px;padding:2px 6px;margin-left:6px;" title="Documento em Português">🇧🇷 PT</span>';
                     const tplRes = resolveTemplateForLang(
                       store.templates.find(t => t.code === d.template_code) || { code: d.template_code, name: d.template_name },
-                      d.lang || lang
+                      d.lang || "pt"
                     );
                     return `
                       <tr style="${activeDoc && d.id === activeDoc.id ? "background:var(--raised);" : ""}">
                         <td>
-                          <div style="font-weight:600;">#${d.id} · [${esc(d.template_code)}]</div>
+                          <div style="font-weight:600;display:flex;align-items:center;">
+                            <span>#${d.id} · [${esc(d.template_code)}]</span>
+                            ${docLangBadge}
+                          </div>
                           <div style="font-size:12px;color:var(--muted);">${esc(tplRes.name || d.template_name)}</div>
                         </td>
                         <td>
@@ -908,7 +966,7 @@ function renderApprovals(container) {
                       status: activeDoc.status,
                       control_no: activeDoc.control_no,
                       created_at: activeDoc.created_at,
-                      lang: activeDoc.lang || lang,
+                      lang: activeDoc.lang || "pt",
                       issuer: {
                         rp_name: activeDoc.issuer_name,
                         badge: activeDoc.issuer_badge,
@@ -1323,17 +1381,18 @@ export function renderApp() {
   renderSidebar();
   const main = document.getElementById("main-canvas");
   const hash = window.location.hash || "#/";
+  const routeBase = hash.split("?")[0];
 
-  if (hash.startsWith("#/emitir")) {
-    const code = hash.split("/")[2] || "SW";
+  if (routeBase.startsWith("#/emitir")) {
+    const code = routeBase.split("/")[2] || "SW";
     renderComposer(main, code);
-  } else if (hash === "#/aprovacoes") {
+  } else if (routeBase === "#/aprovacoes") {
     renderApprovals(main);
-  } else if (hash === "#/oficiais") {
+  } else if (routeBase === "#/oficiais") {
     renderOfficers(main);
-  } else if (hash === "#/patentes") {
+  } else if (routeBase === "#/patentes") {
     renderRanks(main);
-  } else if (hash === "#/modelos") {
+  } else if (routeBase === "#/modelos") {
     renderTemplatesAdmin(main);
   } else {
     renderOverview(main);

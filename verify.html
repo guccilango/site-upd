@@ -131,6 +131,10 @@
                 <td>${esc(rec.approved_by)}</td>
               </tr>
               <tr>
+                <th>${lang === "pt" ? "Idioma Oficial do Documento" : "Official Document Language"}</th>
+                <td>${(rec.lang || "pt") === "en" ? "🇺🇸 English (US Official Standards)" : "🇧🇷 Português (RP Americano Traduzido)"}</td>
+              </tr>
+              <tr>
                 <th>${lang === "pt" ? "Data e Hora da Autenticação" : "Timestamp of Authentication"}</th>
                 <td class="mono">${esc((rec.approved_at || "").slice(0, 19).replace("T", " "))} UTC</td>
               </tr>

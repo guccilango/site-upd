@@ -580,6 +580,7 @@ export function verifyControlNoLocal(controlNo) {
     issued_by: `${doc.issuer_rank} ${doc.issuer_name} (Badge #${doc.issuer_badge})`,
     approved_by: `${doc.approver_rank} ${doc.approver_name} (Badge #${doc.approver_badge})`,
     approved_at: doc.approved_at,
+    lang: doc.lang || doc.data_json?._lang || "pt",
     revoked_at: doc.revoked_at || null,
     revocation_note: doc.status === "REVOKED" ? doc.reject_reason : null
   };

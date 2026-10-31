@@ -79,6 +79,11 @@ export const UI_I18N = {
     docLangLabel: "Idioma do Documento",
     docLangPt: "🇧🇷 Português (RP Americano Traduzido)",
     docLangEn: "🇺🇸 English (US Official Standards)",
+    docEmissionLangLabel: "Idioma de Emissão do Documento",
+    docEmissionLangHelp: "Define o idioma em que a folha física oficial (cabeçalho, carimbos, texto e assinaturas) será gerada",
+    btnDocLangPt: "🇧🇷 Documento em Português",
+    btnDocLangEn: "🇺🇸 Document in English",
+    siteLangNotice: "Idioma da Interface do Site",
     templatePickerLabel: "Selecione o Modelo de Documento",
     fieldAuthorityNotice: "Patente mínima para emissão: Nível {minIssue} · Contra-assinatura exigida: Nível {minApprove}+",
     btnSubmitDraft: "Enviar Minuta para Aprovação do Comando",
@@ -206,6 +211,11 @@ export const UI_I18N = {
     docLangLabel: "Document Language",
     docLangPt: "🇧🇷 Portuguese (Translated US RP)",
     docLangEn: "🇺🇸 English (US Official Standards)",
+    docEmissionLangLabel: "Document Emission Language",
+    docEmissionLangHelp: "Controls the language printed on the official physical sheet (masthead, stamps, body text, and signatures)",
+    btnDocLangPt: "🇧🇷 Document in Portuguese",
+    btnDocLangEn: "🇺🇸 Document in English",
+    siteLangNotice: "Site Interface Language",
     templatePickerLabel: "Select Document Template",
     fieldAuthorityNotice: "Minimum rank to issue: Level {minIssue} · Counter-signature required: Level {minApprove}+",
     btnSubmitDraft: "Submit Draft for Command Approval",
@@ -401,6 +411,7 @@ export const TEMPLATE_TRANSLATIONS = {
 };
 
 let _currentLang = localStorage.getItem("upd_site_lang") || "pt";
+let _currentDocLang = localStorage.getItem("upd_doc_lang") || "pt";
 
 export function getLanguage() {
   return _currentLang;
@@ -409,6 +420,15 @@ export function getLanguage() {
 export function setLanguage(lang) {
   _currentLang = lang === "en" ? "en" : "pt";
   localStorage.setItem("upd_site_lang", _currentLang);
+}
+
+export function getDocumentLanguage() {
+  return _currentDocLang;
+}
+
+export function setDocumentLanguage(lang) {
+  _currentDocLang = lang === "en" ? "en" : "pt";
+  localStorage.setItem("upd_doc_lang", _currentDocLang);
 }
 
 export function t(key, params = {}) {
