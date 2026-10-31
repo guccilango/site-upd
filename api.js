@@ -857,8 +857,9 @@ export async function postApprovedDocumentToDiscord(doc) {
       const msg = await res.json();
       doc.discord_posted = true;
       doc.discord_msg_id = msg.id;
-      if (msg.attachments && msg.attachments[0] && msg.attachments[0].url) {
-        doc.png_url = msg.attachments[0].url;
+      const imgUrl = msg.embeds?.[0]?.image?.url || msg.attachments?.[0]?.url;
+      if (imgUrl) {
+        doc.png_url = imgUrl;
       }
       doc._updated_at = Date.now();
       saveLocalStore(store);
