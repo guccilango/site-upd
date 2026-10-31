@@ -641,6 +641,7 @@ function renderInspectModal(container) {
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           ${canApp ? `<button type="button" class="btn btn-primary" id="btn-modal-approve">✅ ${esc(t("btnApprove"))}</button>` : ""}
           ${canApp ? `<button type="button" class="btn btn-danger" id="btn-modal-reject">${esc(t("btnReject"))}</button>` : ""}
+          ${doc.png_url ? `<a class="btn btn-secondary" href="${esc(doc.png_url)}" target="_blank" rel="noopener">🖼️ ${lang === "pt" ? "Imagem (Fivemanage)" : "Image (Fivemanage)"}</a>` : ""}
           <button type="button" class="btn btn-secondary" id="btn-modal-print">🖨️ ${lang === "pt" ? "Imprimir / PDF" : "Print / Save PDF"}</button>
           ${doc.status === "APPROVED" && officer.is_admin ? `<button type="button" class="btn btn-danger" id="btn-modal-revoke">${esc(t("btnRevoke"))}</button>` : ""}
           <button type="button" class="btn btn-secondary" id="btn-close-inspect">${lang === "pt" ? "Fechar" : "Close Preview"}</button>

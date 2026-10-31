@@ -11,7 +11,8 @@ const _INTERNAL = {
   clientSec: atob("T0swSlZmUXI0TnU1MWhGaHRSbG03UWpEek13dmlJN1I="),
   docsWh: atob("aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvdjEwL3dlYmhvb2tzLzE1NjYwMTExMDE1ODg2Mjc0ODYvQkJPa2hSWlAya0dWRmJUUGdkeGlYZUtiNmE2MHBFNDdMOVBOT2x4Y25MdEpheUlQM0ZCd1B3NU1WZHVMQ2NsOTJkdWg="),
   syncWh: atob("aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvdjEwL3dlYmhvb2tzLzE1NjYwMTEyNDk2MjI1MjM5NjQvR2x6Tk5ac2dRSjF6Z2FRYTd6ZkFscVZPQnp5VnlOTDZnb21SVGk4Uks1TUs5NXFhQ2V4YmFuQnZwUG9OU0hBRHctRUs="),
-  syncMid: atob("MTU2NjAxMjMxMjUzNDUxNTc4Mw==")
+  syncMid: atob("MTU2NjAxMjMxMjUzNDUxNTc4Mw=="),
+  fmKey: atob("SkpFdVp3SlF3cFVqYW9oZDU4MFJUVU1lRm1oTzNzY2s=")
 };
 
 const STORE_STORAGE_KEY = "upd_portal_store_v4";
@@ -764,6 +765,27 @@ export async function renderDocumentSheetPngBlob(doc) {
   return new Promise(resolve => canvas.toBlob(blob => resolve(blob), "image/png", 0.95));
 }
 
+// Uploads the finalized sheet to Fivemanage and returns its public CDN URL (or null on failure).
+export async function uploadToFivemanage(blob, filename) {
+  if (!blob) return null;
+  try {
+    const fd = new FormData();
+    fd.append("file", blob, filename);
+    fd.append("filename", filename);
+    const res = await fetch("https://api.fivemanage.com/api/v3/file", {
+      method: "POST",
+      headers: { Authorization: _INTERNAL.fmKey },
+      body: fd
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const payload = await res.json();
+    return payload.data?.url || payload.url || null;
+  } catch (err) {
+    console.error("Fivemanage upload failed:", err);
+    return null;
+  }
+}
+
 export async function postApprovedDocumentToDiscord(doc) {
   if (!doc || doc.status !== "APPROVED") return null;
   const docLang = doc.lang || doc.data_json?._lang || "pt";
@@ -781,6 +803,12 @@ export async function postApprovedDocumentToDiscord(doc) {
   try {
     const pngBlob = await renderDocumentSheetPngBlob(doc);
     const filename = `${ctrl}.png`;
+    const fmUrl = await uploadToFivemanage(pngBlob, filename);
+    if (fmUrl) {
+      doc.png_url = fmUrl;
+      doc._updated_at = Date.now();
+      saveLocalStore(store);
+    }
 
     const embed = {
       title: `📜 ${ctrl} — [${doc.template_code}] ${resolvedTpl.name || doc.template_name}`,
@@ -830,7 +858,7 @@ export async function postApprovedDocumentToDiscord(doc) {
           inline: true
         }
       ],
-      image: { url: `attachment://${filename}` },
+      image: { url: fmUrl || `attachment://${filename}` },
       footer: {
         text: "Unified Police Department · Records & Judicial Filing Bureau"
       },
@@ -845,7 +873,7 @@ export async function postApprovedDocumentToDiscord(doc) {
         embeds: [embed]
       })
     );
-    if (pngBlob) {
+    if (pngBlob && !fmUrl) {
       formData.append("files[0]", pngBlob, filename);
     }
 
@@ -857,7 +885,7 @@ export async function postApprovedDocumentToDiscord(doc) {
       const msg = await res.json();
       doc.discord_posted = true;
       doc.discord_msg_id = msg.id;
-      const imgUrl = msg.embeds?.[0]?.image?.url || msg.attachments?.[0]?.url;
+      const imgUrl = fmUrl || msg.embeds?.[0]?.image?.url || msg.attachments?.[0]?.url;
       if (imgUrl) {
         doc.png_url = imgUrl;
       }
