@@ -40,7 +40,7 @@
   </main>
 
   <script type="module">
-    import { verifyControlNoLocal } from "./api.js";
+    import { fetchPublicVerifyRecord } from "./api.js";
 
     const input = document.getElementById("verify-input");
     const resultBox = document.getElementById("verify-result");
@@ -54,15 +54,7 @@
       if (!code) return;
       input.value = code;
 
-      let rec = null;
-      try {
-        const res = await fetch(`${window.UPD_CONFIG.API_URL}/api/verify/${encodeURIComponent(code)}`);
-        if (res.ok) rec = await res.json();
-      } catch (_) {}
-
-      if (!rec) {
-        rec = verifyControlNoLocal(code);
-      }
+      const rec = await fetchPublicVerifyRecord(code);
 
       if (!rec) {
         resultBox.innerHTML = `

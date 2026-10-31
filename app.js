@@ -144,6 +144,13 @@ export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
 // ─── Login Screen (Mandatory Discord / Owner Auth) ────────────────────────────
 
 let authErrorMessage = "";
+let showRecoveryForm = false;
+
+function maskId(id) {
+  const s = String(id || "");
+  if (!s) return "—";
+  return s.length > 4 ? `••••${s.slice(-4)}` : "••••";
+}
 
 function renderLoginScreen() {
   const sidebar = document.getElementById("sidebar-nav");
@@ -174,8 +181,8 @@ function renderLoginScreen() {
     </div>
     <div class="sidebar-footer">
       <div style="font-size:12px;color:var(--muted);">
-        Guild ID: <span class="mono">${esc(window.UPD_CONFIG.GUILD_ID)}</span><br/>
-        Supervisor Role: <span class="mono">${esc(window.UPD_CONFIG.SUPERVISOR_ROLE_ID)}</span>
+        Unified Police Department<br/>
+        Command & Judicial Records
       </div>
     </div>
   `;
@@ -183,8 +190,8 @@ function renderLoginScreen() {
   main.innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Unified Police Department — Command & Records Authentication</h1>
-        <p class="page-sub">Restricted to authenticated Discord Command / Supervisory personnel (Role ${esc(window.UPD_CONFIG.SUPERVISOR_ROLE_ID)})</p>
+        <h1 class="page-title">Unified Police Department — Command & Records Portal</h1>
+        <p class="page-sub">Restricted to authenticated UPD Command & Supervisory personnel</p>
       </div>
       <div class="header-actions">
         <a class="btn btn-secondary" href="./verify.html">Public Document Verification</a>
@@ -199,81 +206,87 @@ function renderLoginScreen() {
         : ""
     }
 
-    <div class="grid-asymmetric">
-      <section class="panel">
-        <div class="panel-header">
+    <div style="max-width:520px;margin:28px auto 0;">
+      <section class="panel" style="padding:24px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <img src="./assets/opacidade2.png" alt="UPD Crest" style="width:44px;height:44px;" />
           <div>
-            <h2 class="panel-title">Discord OAuth2 Authentication</h2>
-            <div class="panel-sub">Verifies your membership in Guild ${esc(window.UPD_CONFIG.GUILD_ID)} and Supervisory Role</div>
+            <h2 class="panel-title">Discord Command Authentication</h2>
+            <div class="panel-sub">Verifies your UPD Command & Supervisory role membership</div>
           </div>
         </div>
-        <p style="margin:0 0 16px;color:var(--muted);">
-          Sign in with your Discord account. Only members holding the UPD Command / Supervision role (<span class="mono">${esc(window.UPD_CONFIG.SUPERVISOR_ROLE_ID)}</span>) or admitted by Command Staff are granted access.
+        <p style="margin:0 0 18px;color:var(--muted);font-size:13px;line-height:1.55;">
+          Sign in with your official Discord account. Access is automatically granted to members holding the UPD Command / Supervision role or admitted by Command Staff.
         </p>
-        <div style="display:flex;flex-wrap:wrap;gap:10px;">
-          <a class="btn btn-primary" href="${esc(getDiscordOAuthUrl())}">
-            Sign in with Discord (Direct OAuth2)
-          </a>
-          <a class="btn btn-secondary" href="${esc(window.UPD_CONFIG.API_URL)}/api/auth/login">
-            Sign in via Bot Host API (${esc(window.UPD_CONFIG.API_URL)})
-          </a>
-        </div>
-      </section>
+        <a class="btn btn-primary" href="${esc(getDiscordOAuthUrl())}" style="width:100%;justify-content:center;height:38px;font-size:14px;">
+          Sign in with Discord
+        </a>
 
-      <aside class="panel">
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title">Direct Command / Owner Access</h2>
-            <div class="panel-sub">Direct credential login for Owner (${esc(window.UPD_CONFIG.OWNER_DISCORD_ID)}) & Supervisors</div>
-          </div>
-        </div>
-        <form id="owner-login-form">
-          <div class="field-group">
-            <label class="field-label" for="login-discord-id">Discord User ID</label>
-            <input class="input mono" id="login-discord-id" name="discord_id" value="${esc(window.UPD_CONFIG.OWNER_DISCORD_ID)}" required />
-          </div>
-          <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">
-            <div class="field-group">
-              <label class="field-label" for="login-rp-name">Officer Roleplay Name (Cursive Signature)</label>
-              <input class="input" id="login-rp-name" name="rp_name" placeholder="Chief Gucci Lango" required />
-            </div>
-            <div class="field-group">
-              <label class="field-label" for="login-badge">Badge #</label>
-              <input class="input mono" id="login-badge" name="badge" value="01" required />
-            </div>
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="login-access-key">
-              <span>Command Supervision Key</span>
-              <span class="field-hint mono">Role ID or Master Key</span>
-            </label>
-            <input class="input mono" id="login-access-key" name="access_key" type="password" placeholder="1501714073744572456" required />
-          </div>
-          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">
-            Authenticate Command Session
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:12px;color:var(--muted);">Authorized Command Personnel</span>
+          <button type="button" class="btn btn-ghost" id="btn-toggle-recovery" style="font-size:12px;height:26px;padding:0 8px;">
+            ${showRecoveryForm ? "Hide Recovery Login" : "Command Recovery Login"}
           </button>
-        </form>
-      </aside>
+        </div>
+
+        ${
+          showRecoveryForm
+            ? `
+          <form id="owner-login-form" style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);">
+            <div class="field-group">
+              <label class="field-label" for="login-discord-id">Authorized Credential ID</label>
+              <input class="input mono" id="login-discord-id" name="discord_id" placeholder="Enter your Discord ID" autocomplete="off" required />
+            </div>
+            <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">
+              <div class="field-group">
+                <label class="field-label" for="login-rp-name">Officer Roleplay Name (Signature)</label>
+                <input class="input" id="login-rp-name" name="rp_name" placeholder="Officer Full Name" autocomplete="off" required />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="login-badge">Badge #</label>
+                <input class="input mono" id="login-badge" name="badge" placeholder="01" autocomplete="off" required />
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="login-access-key">Command Supervision Key</label>
+              <input class="input mono" id="login-access-key" name="access_key" type="password" placeholder="Enter Command Key" autocomplete="off" required />
+            </div>
+            <button type="submit" class="btn btn-secondary" style="width:100%;justify-content:center;">
+              Authenticate Command Session
+            </button>
+          </form>
+        `
+            : ""
+        }
+      </section>
     </div>
   `;
 
-  document.getElementById("owner-login-form").addEventListener("submit", e => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    try {
-      authErrorMessage = "";
-      loginOwnerDirect(
-        fd.get("discord_id"),
-        fd.get("access_key"),
-        fd.get("rp_name"),
-        fd.get("badge")
-      );
-      renderApp();
-    } catch (err) {
-      authErrorMessage = err.message;
-      renderLoginScreen();
-    }
+  document.getElementById("btn-toggle-recovery").addEventListener("click", () => {
+    showRecoveryForm = !showRecoveryForm;
+    renderLoginScreen();
   });
+
+  const form = document.getElementById("owner-login-form");
+  if (form) {
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        authErrorMessage = "";
+        loginOwnerDirect(
+          fd.get("discord_id"),
+          fd.get("access_key"),
+          fd.get("rp_name"),
+          fd.get("badge")
+        );
+        renderApp();
+      } catch (err) {
+        authErrorMessage = err.message;
+        renderLoginScreen();
+      }
+    });
+  }
 }
 
 // ─── Authenticated Sidebar & Views ────────────────────────────────────────────
@@ -379,7 +392,6 @@ function renderSidebar() {
         </div>
         <div class="officer-rank">${esc(officer.rank_name)} · Lvl ${officer.rank_level}${officer.is_admin ? " · Admin" : ""}</div>
         <div class="officer-sig-preview" title="Auto-generated cursive signature">${esc(officer.rp_name)}</div>
-        <div class="mono" style="font-size:11px;color:var(--muted);margin-top:4px;">ID: ${esc(officer.discord_id)}</div>
       </div>
       <button class="btn btn-secondary" id="btn-logout" type="button" style="justify-content:center;">
         Sign Out
@@ -742,7 +754,7 @@ function renderComposer(container, codeParam) {
 
           <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border);">
             <span style="font-size:12px;color:var(--muted);">
-              Channel: <strong>#${esc(window.UPD_CONFIG.GUILD_ID)} · Official Docs</strong>
+              Channel: <strong>#upd-official-documents</strong>
             </span>
             <button type="submit" class="btn btn-primary">Submit Draft for Command Approval</button>
           </div>
@@ -959,7 +971,7 @@ function renderOfficers(container) {
                   <tr>
                     <td>
                       <div style="font-weight:600;">${esc(o.rp_name)} ${o.is_admin ? `<span class="pill pill-neutral" style="margin-left:4px;">Admin</span>` : ""}</div>
-                      <div class="mono" style="font-size:12px;color:var(--muted);">Badge #${esc(o.badge)} · Discord ${esc(o.discord_id)}</div>
+                      <div class="mono" style="font-size:12px;color:var(--muted);">Badge #${esc(o.badge)} · Discord ${esc(maskId(o.discord_id))}</div>
                     </td>
                     <td>${esc(o.rank_name)} (Lvl ${o.rank_level})</td>
                     <td><span style="font-family:var(--font-sig);font-size:22px;color:var(--pen);">${esc(o.rp_name)}</span></td>
@@ -1104,7 +1116,7 @@ function renderRanks(container) {
                     }
                   </td>
                   <td>
-                    <input class="input mono" data-role-input="${r.id}" value="${esc(r.discord_role_id || "")}" placeholder="Discord Role Snowflake ID" style="height:28px;font-size:12px;" />
+                    <input class="input mono" type="password" data-role-input="${r.id}" value="${esc(r.discord_role_id || "")}" placeholder="Link Discord Role" style="height:28px;font-size:12px;" />
                   </td>
                   <td class="num">
                     <button class="btn btn-secondary" data-save-rank="${r.id}" ${!caller.is_admin ? "disabled" : ""}>Save</button>
@@ -1132,7 +1144,7 @@ function renderRanks(container) {
           </div>
           <div class="field-group">
             <label class="field-label">Discord Role ID</label>
-            <input class="input mono" name="discord_role_id" placeholder="1501714073744572456" />
+            <input class="input mono" name="discord_role_id" placeholder="Optional Discord Role ID" />
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" ${!caller.is_admin ? "disabled" : ""}>
             Save Rank Level

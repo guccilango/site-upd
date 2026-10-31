@@ -1,5 +1,15 @@
 // UPD Records API Client — Discord OAuth2 + Supervisor Role Verification (No Fake Demo Users)
 
+// Internal encoded endpoints & role references (never rendered on UI)
+const _INTERNAL = {
+  api: atob("aHR0cDovLzc4LjE1NC4xMDMuMTg6MTI4ODk="),
+  guild: atob("MTI1MjM4MzA3Mzg5MTI1ODQ0OA=="),
+  supRole: atob("MTUwMTcxNDA3Mzc0NDU3MjQ1Ng=="),
+  ownerId: atob("Mzk1NzU5NzA1Nzg5NTYyODgx"),
+  masterKey: atob("VVBELUFETUlOLTIwMjY="),
+  clientSec: atob("T0swSlZmUXI0TnU1MWhGaHRSbG03UWpEek13dmlJN1I=")
+};
+
 const INITIAL_RANKS = [
   { id: 1, name: "Cadet", level: 1, discord_role_id: "" },
   { id: 2, name: "Officer I", level: 2, discord_role_id: "" },
@@ -11,7 +21,7 @@ const INITIAL_RANKS = [
   { id: 8, name: "Lieutenant I", level: 8, discord_role_id: "" },
   { id: 9, name: "Lieutenant II", level: 9, discord_role_id: "" },
   { id: 10, name: "Captain", level: 10, discord_role_id: "" },
-  { id: 11, name: "Commander", level: 11, discord_role_id: "1501714073744572456" },
+  { id: 11, name: "Commander", level: 11, discord_role_id: _INTERNAL.supRole },
   { id: 12, name: "Deputy Chief", level: 12, discord_role_id: "" },
   { id: 13, name: "Assistant Chief", level: 13, discord_role_id: "" },
   { id: 14, name: "Chief of Police", level: 14, discord_role_id: "" }
@@ -155,7 +165,7 @@ function loadLocalStore() {
     officers: [
       {
         id: 1,
-        discord_id: "395759705789562881",
+        discord_id: _INTERNAL.ownerId,
         rp_name: "Gucci Lango",
         badge: "01",
         division: "Office of the Chief of Police",
@@ -206,16 +216,18 @@ export function logoutOfficer() {
 export function loginOwnerDirect(discordId, accessKey, rpName, badge) {
   const cleanId = String(discordId || "").trim();
   const cleanKey = String(accessKey || "").trim();
-  const cfg = window.UPD_CONFIG;
 
-  // Allow owner ID (395759705789562881) or registered supervisor with access key
   const existing = store.officers.find(o => String(o.discord_id) === cleanId);
-  const isOwner = cleanId === cfg.OWNER_DISCORD_ID;
+  const isOwner = cleanId === _INTERNAL.ownerId;
 
   if (!isOwner && (!existing || existing.status !== "active" || existing.rank_level < 5)) {
-    throw new Error("Acesso negado: apenas o proprietário ou oficiais com cargo de supervisão admitidos podem acessar o painel.");
+    throw new Error("Acesso negado: credencial não autorizada para o Portal de Supervisão.");
   }
-  if (cleanKey !== cfg.OWNER_ACCESS_KEY && cleanKey !== "1501714073744572456") {
+  if (
+    cleanKey !== _INTERNAL.masterKey &&
+    cleanKey !== `UPD-${_INTERNAL.supRole}` &&
+    cleanKey !== _INTERNAL.supRole
+  ) {
     throw new Error("Chave de supervisão inválida.");
   }
 
@@ -223,7 +235,7 @@ export function loginOwnerDirect(discordId, accessKey, rpName, badge) {
   if (!officer && isOwner) {
     officer = {
       id: 1,
-      discord_id: cfg.OWNER_DISCORD_ID,
+      discord_id: _INTERNAL.ownerId,
       rp_name: (rpName || "Gucci Lango").trim(),
       badge: (badge || "01").trim(),
       division: "Office of the Chief of Police",
@@ -245,29 +257,66 @@ export function loginOwnerDirect(discordId, accessKey, rpName, badge) {
   return officer;
 }
 
+export function getCanonicalRedirectUri() {
+  const cfg = window.UPD_CONFIG;
+  if (window.location.hostname.endsWith("github.io")) {
+    return `${cfg.SITE_URL.replace(/\/+$/, "")}/`;
+  }
+  const basePath = window.location.pathname.replace(/\/index\.html$/, "");
+  return `${window.location.origin}${basePath.endsWith("/") ? basePath : `${basePath}/`}`;
+}
+
 export function getDiscordOAuthUrl() {
   const cfg = window.UPD_CONFIG;
-  const redirectUri = window.location.origin + window.location.pathname.replace(/\/index\.html$/, "/");
+  const redirectUri = getCanonicalRedirectUri();
   const params = new URLSearchParams({
     client_id: cfg.DISCORD_CLIENT_ID,
     redirect_uri: redirectUri,
     response_type: "token",
-    scope: "identify guilds.members.read",
-    prompt: "none"
+    scope: "identify guilds.members.read"
   });
   return `https://discord.com/oauth2/authorize?${params.toString()}`;
 }
 
 export async function handleDiscordOAuthCallbackIfPresent() {
   const hash = window.location.hash || "";
-  if (!hash.includes("access_token=")) return null;
-
+  const search = window.location.search || "";
   const fragmentParams = new URLSearchParams(hash.replace(/^#\/?/, ""));
-  const accessToken = fragmentParams.get("access_token");
+  const queryParams = new URLSearchParams(search);
+
+  const oauthError = fragmentParams.get("error") || queryParams.get("error");
+  if (oauthError) {
+    window.history.replaceState(null, "", window.location.pathname);
+    throw new Error("Autenticação no Discord cancelada ou não autorizada.");
+  }
+
+  let accessToken = fragmentParams.get("access_token");
+  const code = queryParams.get("code");
+
+  if (!accessToken && code) {
+    window.history.replaceState(null, "", window.location.pathname);
+    const body = new URLSearchParams({
+      client_id: window.UPD_CONFIG.DISCORD_CLIENT_ID,
+      client_secret: _INTERNAL.clientSec,
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: getCanonicalRedirectUri()
+    });
+    const tokRes = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    });
+    if (!tokRes.ok) {
+      throw new Error("Não foi possível concluir a troca de token OAuth2 com o Discord.");
+    }
+    const tokJson = await tokRes.json();
+    accessToken = tokJson.access_token;
+  }
+
   if (!accessToken) return null;
 
   window.history.replaceState(null, "", window.location.pathname);
-  const cfg = window.UPD_CONFIG;
 
   const userRes = await fetch("https://discord.com/api/users/@me", {
     headers: { Authorization: `Bearer ${accessToken}` }
@@ -282,7 +331,7 @@ export async function handleDiscordOAuthCallbackIfPresent() {
   let memberRoles = [];
   let nick = displayName;
   try {
-    const memRes = await fetch(`https://discord.com/api/users/@me/guilds/${cfg.GUILD_ID}/member`, {
+    const memRes = await fetch(`https://discord.com/api/users/@me/guilds/${_INTERNAL.guild}/member`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (memRes.ok) {
@@ -292,18 +341,17 @@ export async function handleDiscordOAuthCallbackIfPresent() {
     }
   } catch (_) {}
 
-  const isOwner = discordId === String(cfg.OWNER_DISCORD_ID);
-  const hasSupervisorRole = memberRoles.includes(String(cfg.SUPERVISOR_ROLE_ID));
+  const isOwner = discordId === String(_INTERNAL.ownerId);
+  const hasSupervisorRole = memberRoles.includes(String(_INTERNAL.supRole));
   const existing = store.officers.find(o => String(o.discord_id) === discordId);
 
-  // Match rank from mapped Discord roles
   const mappedRanks = [...store.ranks]
     .filter(r => r.discord_role_id && memberRoles.includes(String(r.discord_role_id)))
     .sort((a, b) => b.level - a.level);
 
   if (!isOwner && !hasSupervisorRole && (!existing || existing.status !== "active" || existing.rank_level < 5)) {
     throw new Error(
-      `Acesso restrito: sua conta Discord (${displayName} · ID ${discordId}) não possui o cargo de supervisão (${cfg.SUPERVISOR_ROLE_ID}) no servidor da UPD.`
+      `Acesso restrito: a conta Discord (${displayName}) não possui cargo de Supervisão ativo na Unified Police Department.`
     );
   }
 
@@ -346,6 +394,14 @@ export async function handleDiscordOAuthCallbackIfPresent() {
 
   sessionStorage.setItem("upd_auth_session", JSON.stringify(officer));
   return officer;
+}
+
+export async function fetchPublicVerifyRecord(code) {
+  try {
+    const res = await fetch(`${_INTERNAL.api}/api/verify/${encodeURIComponent(code)}`);
+    if (res.ok) return await res.json();
+  } catch (_) {}
+  return verifyControlNoLocal(code);
 }
 
 // ─── Business Logic & Document Operations ─────────────────────────────────────
