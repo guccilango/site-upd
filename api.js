@@ -1,5 +1,5 @@
 // UPD Records API Client — Real-Time Shared Cloud Registry + Discord Channel Dispatch + OAuth2
-import { DOC_I18N, resolveTemplateForLang } from "./i18n.js?v=5";
+import { DOC_I18N, resolveTemplateForLang } from "./i18n.js?v=6";
 
 // Internal encoded endpoints & role references (never rendered on UI)
 const _INTERNAL = {
@@ -282,7 +282,14 @@ function mergeRemoteIntoStore(remote) {
       const remTime = Number(d._updated_at) || 0;
       const curTime = Number(cur._updated_at) || 0;
       if (remPrio > curPrio || (remPrio === curPrio && remTime >= curTime)) {
-        docMap.set(id, { ...cur, ...d, discord_posted: Boolean(cur.discord_posted || d.discord_posted) });
+        docMap.set(id, {
+          ...cur,
+          ...d,
+          png_url: d.png_url || cur.png_url || null,
+          discord_posted: Boolean(cur.discord_posted || d.discord_posted)
+        });
+      } else if (!cur.png_url && d.png_url) {
+        cur.png_url = d.png_url;
       }
     }
   }
@@ -358,7 +365,7 @@ export async function pullSharedStore(force = false) {
     const prevSnapshot = JSON.stringify({
       o: store.officers.length,
       r: store.ranks.length,
-      d: store.documents.map(x => `${x.id}:${x.status}:${x.control_no || ""}`).join(",")
+      d: store.documents.map(x => `${x.id}:${x.status}:${x.control_no || ""}:${x.png_url || ""}`).join(",")
     });
 
     mergeRemoteIntoStore(remoteData);
@@ -368,7 +375,7 @@ export async function pullSharedStore(force = false) {
     const nextSnapshot = JSON.stringify({
       o: store.officers.length,
       r: store.ranks.length,
-      d: store.documents.map(x => `${x.id}:${x.status}:${x.control_no || ""}`).join(",")
+      d: store.documents.map(x => `${x.id}:${x.status}:${x.control_no || ""}:${x.png_url || ""}`).join(",")
     });
 
     if (force || prevSnapshot !== nextSnapshot) {
@@ -576,26 +583,33 @@ function wrapCanvasParagraphs(ctx, text, maxWidth) {
   return lines;
 }
 
-export async function renderDocumentSheetPngBlob(doc) {
+export async function renderDocumentSheetCanvas(doc) {
+  if (document.fonts && document.fonts.ready) {
+    try {
+      await document.fonts.ready;
+    } catch (_) {}
+  }
+
   const canvas = document.createElement("canvas");
-  canvas.width = 1020;
-  canvas.height = 1320;
+  canvas.width = 1240;
+  canvas.height = 1605;
   const ctx = canvas.getContext("2d");
 
   const docLang = doc.lang || doc.data_json?._lang || "pt";
   const chrome = DOC_I18N[docLang] || DOC_I18N.pt;
   const rawTpl = store.templates.find(t => t.code === doc.template_code) || store.templates[0];
   const resolvedTpl = resolveTemplateForLang(rawTpl, docLang);
+  const status = (doc.status || "PENDING").toUpperCase();
 
-  // Paper background & outer border
+  // Paper background & faithful US-Letter double border (matches .us-letter-sheet)
   ctx.fillStyle = "#fcfbf7";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = "#111e38";
   ctx.lineWidth = 3;
-  ctx.strokeRect(28, 28, canvas.width - 56, canvas.height - 56);
-  ctx.strokeStyle = "#a8842a";
-  ctx.lineWidth = 1;
-  ctx.strokeRect(34, 34, canvas.width - 68, canvas.height - 68);
+  ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
+  ctx.strokeStyle = "#8c6d1f";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(32, 32, canvas.width - 64, canvas.height - 64);
 
   const [crestImg, sealImg] = await Promise.all([
     loadImage("./assets/opacidade2.png"),
@@ -605,164 +619,322 @@ export async function renderDocumentSheetPngBlob(doc) {
   // Watermark
   if (crestImg) {
     ctx.save();
-    ctx.globalAlpha = 0.045;
-    ctx.drawImage(crestImg, (canvas.width - 420) / 2, (canvas.height - 420) / 2, 420, 420);
+    ctx.globalAlpha = 0.075;
+    ctx.drawImage(crestImg, (canvas.width - 480) / 2, (canvas.height - 480) / 2, 480, 480);
+    ctx.restore();
+  }
+
+  // Diagonal Draft Stamp when not APPROVED
+  if (status !== "APPROVED") {
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height * 0.46);
+    ctx.rotate((-32 * Math.PI) / 180);
+    ctx.font = "700 46px 'Public Sans', Arial, sans-serif";
+    ctx.fillStyle = "rgba(158, 27, 27, 0.13)";
+    ctx.textAlign = "center";
+    ctx.fillText(status === "PENDING" ? chrome.stampDraft : status, 0, 0);
     ctx.restore();
   }
 
   // Masthead Crest & Department Header
+  const padX = 68;
   if (crestImg) {
-    ctx.drawImage(crestImg, 56, 54, 68, 68);
+    ctx.drawImage(crestImg, padX, 62, 72, 72);
   }
+  ctx.textAlign = "left";
   ctx.fillStyle = "#111e38";
-  ctx.font = "bold 20px 'IBM Plex Sans', Arial, sans-serif";
-  ctx.fillText(chrome.deptTitle, 136, 76);
-  ctx.fillStyle = "#334155";
-  ctx.font = "bold 11px 'IBM Plex Sans', Arial, sans-serif";
-  ctx.fillText(chrome.deptSub, 136, 95);
-  ctx.fillStyle = "#64748b";
-  ctx.font = "11px 'IBM Plex Sans', Arial, sans-serif";
-  ctx.fillText(chrome.deptJuris, 136, 113);
+  ctx.font = "700 22px 'Public Sans', Arial, sans-serif";
+  ctx.fillText(chrome.deptTitle, padX + 88, 86);
+  ctx.fillStyle = "#8c6d1f";
+  ctx.font = "700 15px 'Public Sans', Arial, sans-serif";
+  ctx.fillText(chrome.deptSub, padX + 88, 108);
+  ctx.fillStyle = "#525866";
+  ctx.font = "400 16px 'Newsreader', Georgia, serif";
+  ctx.fillText(chrome.deptJuris, padX + 88, 129);
 
   // Right Masthead Metadata
-  const ctrl = doc.control_no || `DRAFT-${doc.id}`;
+  const ctrl = doc.control_no || `DRAFT-${doc.id || "PREVIEW"}`;
   const dateStr = (doc.approved_at || doc.created_at || new Date().toISOString()).slice(0, 10);
   const seriesStr = resolvedTpl.category === "doj" ? chrome.seriesDoj : chrome.seriesInternal;
-  const statusStr = doc.status === "APPROVED" ? (docLang === "pt" ? "APROVADO" : "APPROVED") : doc.status;
+  const statusStr = status === "APPROVED" ? (docLang === "pt" ? "APROVADO" : "APPROVED") : status;
 
-  ctx.textAlign = "right";
-  ctx.fillStyle = "#111e38";
-  ctx.font = "bold 12px 'IBM Plex Mono', monospace";
-  ctx.fillText(`${chrome.ctrlNoLabel} ${ctrl}`, canvas.width - 56, 70);
-  ctx.font = "11px 'IBM Plex Mono', monospace";
-  ctx.fillText(`${chrome.dateLabel} ${dateStr}`, canvas.width - 56, 88);
-  ctx.fillText(`${chrome.seriesLabel} ${seriesStr}`, canvas.width - 56, 104);
-  ctx.fillStyle = "#145a32";
-  ctx.font = "bold 11px 'IBM Plex Mono', monospace";
-  ctx.fillText(`${chrome.statusLabel} ${statusStr}`, canvas.width - 56, 120);
+  const drawMetaRow = (label, val, yPos) => {
+    ctx.textAlign = "right";
+    ctx.font = "700 15px 'Public Sans', Arial, sans-serif";
+    ctx.fillStyle = "#111e38";
+    ctx.fillText(val, canvas.width - padX, yPos);
+    const valW = ctx.measureText(val).width;
+    ctx.font = "400 15px 'Public Sans', Arial, sans-serif";
+    ctx.fillStyle = "#525866";
+    ctx.fillText(`${label} `, canvas.width - padX - valW, yPos);
+  };
+  drawMetaRow(chrome.ctrlNoLabel, ctrl, 76);
+  drawMetaRow(chrome.dateLabel, dateStr, 96);
+  drawMetaRow(chrome.seriesLabel, seriesStr, 116);
+  drawMetaRow(chrome.statusLabel, statusStr, 136);
   ctx.textAlign = "left";
 
-  // Gold Rule
-  ctx.fillStyle = "#a8842a";
-  ctx.fillRect(56, 136, canvas.width - 112, 3);
+  // Navy & Gold Rules below Masthead
+  ctx.fillStyle = "#111e38";
+  ctx.fillRect(padX, 152, canvas.width - padX * 2, 3);
+  ctx.fillStyle = "#8c6d1f";
+  ctx.fillRect(padX, 159, canvas.width - padX * 2, 1.5);
 
-  // Caption Box
-  ctx.fillStyle = "#f4f1ea";
-  ctx.fillRect(56, 152, canvas.width - 112, 82);
-  ctx.strokeStyle = "#cbd5e1";
-  ctx.strokeRect(56, 152, canvas.width - 112, 82);
+  // Caption Box (matches .sheet-caption-box)
+  const courtLines = String(resolvedTpl.court_header || "UNIFIED POLICE DEPARTMENT").split("\n");
+  const titleLines = String(resolvedTpl.title || resolvedTpl.name).split("\n");
+  const capTop = 174;
+  const courtH = courtLines.length * 22 + 12;
+  const titleH = titleLines.length * 24 + 14;
+  const capH = courtH + titleH;
+
+  ctx.fillStyle = "#f3f0e6";
+  ctx.fillRect(padX, capTop, canvas.width - padX * 2, capH);
+  ctx.strokeStyle = "#111e38";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(padX, capTop, canvas.width - padX * 2, capH);
 
   ctx.textAlign = "center";
-  ctx.fillStyle = "#475569";
-  ctx.font = "bold 11px 'IBM Plex Sans', Arial, sans-serif";
-  const courtLines = String(resolvedTpl.court_header || "UNIFIED POLICE DEPARTMENT").split("\n");
+  ctx.fillStyle = "#111e38";
+  ctx.font = "700 16.5px 'Newsreader', Georgia, serif";
   courtLines.forEach((cl, idx) => {
-    ctx.fillText(cl, canvas.width / 2, 172 + idx * 15);
+    ctx.fillText(cl, canvas.width / 2, capTop + 24 + idx * 22);
   });
 
+  // Divider inside Caption Box
+  ctx.strokeStyle = "#d5d8e0";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padX + 16, capTop + courtH);
+  ctx.lineTo(canvas.width - padX - 16, capTop + courtH);
+  ctx.stroke();
+
   ctx.fillStyle = "#111e38";
-  ctx.font = "bold 15px 'IBM Plex Sans', Arial, sans-serif";
-  const titleLines = String(resolvedTpl.title || resolvedTpl.name).split("\n");
+  ctx.font = "700 19px 'Public Sans', Arial, sans-serif";
   titleLines.forEach((tl, idx) => {
-    ctx.fillText(tl, canvas.width / 2, 206 + idx * 18);
+    ctx.fillText(tl, canvas.width / 2, capTop + courtH + 24 + idx * 24);
   });
   ctx.textAlign = "left";
 
-  // Body Text
+  // Body Text (matches .sheet-body-text in Newsreader serif)
   const vars = {
     ...(doc.data_json || {}),
     issuer_name: doc.issuer_name,
     issuer_badge: doc.issuer_badge,
     issuer_rank: doc.issuer_rank,
-    issuer_division: docLang === "pt" ? "Divisão de Operações" : "Operations Division"
+    issuer_division: docLang === "pt" ? "Divisão de Patrulha" : "Command Division"
   };
   const filledBody = String(resolvedTpl.body || "").replace(/\{([a-zA-Z0-9_]+)\}/g, (_, k) => {
     const val = vars[k];
     return val !== undefined && val !== "" ? String(val) : `[${k}]`;
   });
 
-  ctx.font = "13.5px 'IBM Plex Sans', Georgia, serif";
-  const wrapped = wrapCanvasParagraphs(ctx, filledBody, canvas.width - 124);
-  let y = 264;
-  const maxBodyY = 1045;
+  ctx.font = "400 18px 'Newsreader', Georgia, serif";
+  const wrapped = wrapCanvasParagraphs(ctx, filledBody, canvas.width - padX * 2 - 8);
+  let y = capTop + capH + 30;
+  const maxBodyY = 1280;
   for (const ln of wrapped) {
     if (y > maxBodyY) break;
     if (!ln.text) {
-      y += 10;
+      y += 14;
       continue;
     }
-    ctx.font = ln.bold ? "bold 13.5px 'IBM Plex Sans', Arial, sans-serif" : "13.5px 'IBM Plex Sans', Georgia, serif";
-    ctx.fillStyle = ln.bold ? "#111e38" : "#1e293b";
-    ctx.fillText(ln.text, 62, y);
-    y += 20;
+    ctx.font = ln.bold ? "700 18px 'Newsreader', Georgia, serif" : "400 18px 'Newsreader', Georgia, serif";
+    ctx.fillStyle = "#141619";
+    ctx.fillText(ln.text, padX, y);
+    y += 25;
   }
 
-  // Signature & Seal Footer Box
-  const sigTop = 1075;
-  ctx.strokeStyle = "#cbd5e1";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(56, sigTop);
-  ctx.lineTo(canvas.width - 56, sigTop);
-  ctx.stroke();
+  // Signature & Seal Card Box (matches .sheet-sig-box)
+  const sigTop = 1310;
+  const sigH = 185;
+  const sigW = canvas.width - padX * 2;
+  ctx.fillStyle = "#faf8f1";
+  ctx.fillRect(padX, sigTop, sigW, sigH);
+  ctx.strokeStyle = "#cfd5df";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(padX, sigTop, sigW, sigH);
 
-  // Left: Issuing Officer
-  ctx.fillStyle = "#64748b";
-  ctx.font = "bold 10px 'IBM Plex Sans', Arial, sans-serif";
-  ctx.fillText(chrome.sigIssuerRole.toUpperCase(), 62, sigTop + 24);
-  ctx.fillStyle = "#1a365d";
-  ctx.font = "italic 26px Georgia, serif";
-  ctx.fillText(doc.issuer_name || "Officer", 62, sigTop + 62);
-  ctx.fillStyle = "#334155";
-  ctx.fillRect(62, sigTop + 72, 280, 1.5);
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 12px 'IBM Plex Sans', Arial, sans-serif";
-  ctx.fillText(String(doc.issuer_name || "").toUpperCase(), 62, sigTop + 90);
-  ctx.fillStyle = "#475569";
-  ctx.font = "11px 'IBM Plex Sans', Arial, sans-serif";
-  ctx.fillText(`${doc.issuer_rank} · Badge #${doc.issuer_badge}`, 62, sigTop + 107);
-  ctx.fillText("Unified Police Department", 62, sigTop + 123);
+  const colW = (sigW - 180) / 2;
+  const leftCenterX = padX + colW / 2;
+  const rightCenterX = canvas.width - padX - colW / 2;
 
-  // Center: Seal
-  if (sealImg) {
-    ctx.drawImage(sealImg, (canvas.width - 92) / 2, sigTop + 18, 92, 92);
-  }
+  // Left Column: Issuing Officer
   ctx.textAlign = "center";
-  ctx.fillStyle = "#a8842a";
-  ctx.font = "bold 9px 'IBM Plex Mono', monospace";
-  ctx.fillText(chrome.sealText, canvas.width / 2, sigTop + 124);
+  ctx.fillStyle = "#525866";
+  ctx.font = "700 13.5px 'Public Sans', Arial, sans-serif";
+  ctx.fillText(chrome.sigIssuerRole, leftCenterX, sigTop + 30);
 
-  // Right: Approving Officer
-  const rightX = canvas.width - 342;
-  ctx.textAlign = "left";
-  ctx.fillStyle = "#64748b";
-  ctx.font = "bold 10px 'IBM Plex Sans', Arial, sans-serif";
-  ctx.fillText(chrome.sigApproverRole.toUpperCase(), rightX, sigTop + 24);
-  ctx.fillStyle = "#1a365d";
-  ctx.font = "italic 26px Georgia, serif";
-  ctx.fillText(doc.approver_name || doc.issuer_name || "Commander", rightX, sigTop + 62);
-  ctx.fillStyle = "#334155";
-  ctx.fillRect(rightX, sigTop + 72, 280, 1.5);
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 12px 'IBM Plex Sans', Arial, sans-serif";
-  ctx.fillText(String(doc.approver_name || "").toUpperCase(), rightX, sigTop + 90);
-  ctx.fillStyle = "#475569";
-  ctx.font = "11px 'IBM Plex Sans', Arial, sans-serif";
-  ctx.fillText(`${doc.approver_rank} · Badge #${doc.approver_badge}`, rightX, sigTop + 107);
-  ctx.fillText(chrome.sigCountersigned.replace("{date}", dateStr), rightX, sigTop + 123);
+  ctx.fillStyle = "#0e2954";
+  ctx.font = "400 40px 'Mrs Saint Delafield', cursive";
+  ctx.fillText(doc.issuer_name || "Officer", leftCenterX, sigTop + 82);
 
-  // Bottom Verification Bar
   ctx.fillStyle = "#111e38";
-  ctx.fillRect(56, 1230, canvas.width - 112, 34);
-  ctx.fillStyle = "#f8fafc";
-  ctx.font = "bold 10.5px 'IBM Plex Mono', monospace";
-  ctx.fillText(chrome.footerVerify.replace("{ctrl}", ctrl), 72, 1251);
+  ctx.fillRect(leftCenterX - colW * 0.42, sigTop + 96, colW * 0.84, 1.5);
+
+  ctx.fillStyle = "#111e38";
+  ctx.font = "700 15px 'Public Sans', Arial, sans-serif";
+  ctx.fillText(String(doc.issuer_name || "").toUpperCase(), leftCenterX, sigTop + 118);
+
+  ctx.fillStyle = "#141619";
+  ctx.font = "400 15px 'Newsreader', Georgia, serif";
+  ctx.fillText(`${doc.issuer_rank || "Officer"} · Badge #${doc.issuer_badge || "01"}`, leftCenterX, sigTop + 140);
+  ctx.fillText("Unified Police Department", leftCenterX, sigTop + 162);
+
+  // Center Column: Official Seal
+  if (sealImg) {
+    ctx.drawImage(sealImg, (canvas.width - 112) / 2, sigTop + 22, 112, 112);
+  }
+  ctx.fillStyle = "#8c6d1f";
+  ctx.font = "700 12px 'Public Sans', Arial, sans-serif";
+  ctx.fillText(chrome.sealText, canvas.width / 2, sigTop + 158);
+
+  // Right Column: Approving Officer
+  ctx.fillStyle = "#525866";
+  ctx.font = "700 13.5px 'Public Sans', Arial, sans-serif";
+  ctx.fillText(chrome.sigApproverRole, rightCenterX, sigTop + 30);
+
+  if (status === "APPROVED" && doc.approver_name) {
+    ctx.fillStyle = "#0e2954";
+    ctx.font = "400 40px 'Mrs Saint Delafield', cursive";
+    ctx.fillText(doc.approver_name, rightCenterX, sigTop + 82);
+
+    ctx.fillStyle = "#111e38";
+    ctx.fillRect(rightCenterX - colW * 0.42, sigTop + 96, colW * 0.84, 1.5);
+
+    ctx.fillStyle = "#111e38";
+    ctx.font = "700 15px 'Public Sans', Arial, sans-serif";
+    ctx.fillText(String(doc.approver_name).toUpperCase(), rightCenterX, sigTop + 118);
+
+    ctx.fillStyle = "#141619";
+    ctx.font = "400 15px 'Newsreader', Georgia, serif";
+    ctx.fillText(`${doc.approver_rank || ""} · Badge #${doc.approver_badge || ""}`, rightCenterX, sigTop + 140);
+    ctx.fillText(chrome.sigCountersigned.replace("{date}", dateStr), rightCenterX, sigTop + 162);
+  } else {
+    ctx.fillStyle = "#9e1b1b";
+    ctx.font = "700 14px 'Public Sans', Arial, sans-serif";
+    ctx.fillText(chrome.sigAwaiting, rightCenterX, sigTop + 76);
+
+    ctx.fillStyle = "#111e38";
+    ctx.fillRect(rightCenterX - colW * 0.42, sigTop + 96, colW * 0.84, 1.5);
+
+    const reqRankLabel = resolvedTpl.category === "doj" ? chrome.sigReqCommander : chrome.sigReqCorporal;
+    ctx.fillStyle = "#111e38";
+    ctx.font = "700 15px 'Public Sans', Arial, sans-serif";
+    ctx.fillText(reqRankLabel, rightCenterX, sigTop + 118);
+
+    ctx.fillStyle = "#141619";
+    ctx.font = "400 15px 'Newsreader', Georgia, serif";
+    ctx.fillText("Unified Police Department", rightCenterX, sigTop + 140);
+  }
+
+  // Bottom Verification Bar (matches .sheet-footer-bar)
+  const footY = 1515;
+  ctx.fillStyle = "#111e38";
+  ctx.fillRect(padX, footY, canvas.width - padX * 2, 1.5);
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#525866";
+  ctx.font = "400 14px 'Public Sans', Arial, sans-serif";
+  ctx.fillText(chrome.footerVerify.replace("{ctrl}", ctrl), padX, footY + 24);
+
   ctx.textAlign = "right";
-  ctx.fillStyle = "#cbd5e1";
-  ctx.fillText(chrome.footerSensitive, canvas.width - 72, 1251);
+  ctx.fillText(chrome.footerSensitive, canvas.width - padX, footY + 24);
   ctx.textAlign = "left";
 
+  return canvas;
+}
+
+export async function renderDocumentSheetPngBlob(doc) {
+  const canvas = await renderDocumentSheetCanvas(doc);
   return new Promise(resolve => canvas.toBlob(blob => resolve(blob), "image/png", 0.95));
+}
+
+function canvasToPdfBlob(canvas) {
+  const jpegDataUrl = canvas.toDataURL("image/jpeg", 0.95);
+  const base64 = jpegDataUrl.split(",")[1];
+  const raw = atob(base64);
+  const imgBytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) {
+    imgBytes[i] = raw.charCodeAt(i);
+  }
+
+  const pageW = 612;
+  const pageH = 792;
+  const imgW = canvas.width;
+  const imgH = canvas.height;
+  const contentStream = `q\n${pageW} 0 0 ${pageH} 0 0 cm\n/Im0 Do\nQ\n`;
+
+  const enc = new TextEncoder();
+  const chunks = [];
+  const offsets = [0];
+  let byteLen = 0;
+
+  const pushStr = s => {
+    const b = enc.encode(s);
+    chunks.push(b);
+    byteLen += b.length;
+  };
+  const pushBytes = b => {
+    chunks.push(b);
+    byteLen += b.length;
+  };
+  const startObj = id => {
+    offsets[id] = byteLen;
+    pushStr(`${id} 0 obj\n`);
+  };
+  const endObj = () => pushStr("endobj\n");
+
+  pushStr("%PDF-1.4\n%\xFF\xFF\xFF\xFF\n");
+
+  startObj(1);
+  pushStr("<< /Type /Catalog /Pages 2 0 R >>\n");
+  endObj();
+
+  startObj(2);
+  pushStr("<< /Type /Pages /Kids [3 0 R] /Count 1 >>\n");
+  endObj();
+
+  startObj(3);
+  pushStr(
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\n`
+  );
+  endObj();
+
+  startObj(4);
+  pushStr(
+    `<< /Type /XObject /Subtype /Image /Width ${imgW} /Height ${imgH} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgBytes.length} >>\nstream\n`
+  );
+  pushBytes(imgBytes);
+  pushStr("\nendstream\n");
+  endObj();
+
+  startObj(5);
+  pushStr(`<< /Length ${contentStream.length} >>\nstream\n${contentStream}endstream\n`);
+  endObj();
+
+  const xrefOffset = byteLen;
+  pushStr("xref\n0 6\n0000000000 65535 f \n");
+  for (let i = 1; i <= 5; i++) {
+    pushStr(`${String(offsets[i]).padStart(10, "0")} 00000 n \n`);
+  }
+  pushStr(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+
+  return new Blob(chunks, { type: "application/pdf" });
+}
+
+export async function downloadDocumentPdf(doc) {
+  const canvas = await renderDocumentSheetCanvas(doc);
+  const pdfBlob = canvasToPdfBlob(canvas);
+  const ctrl = doc.control_no || `DRAFT-${doc.id || "PREVIEW"}`;
+  const url = URL.createObjectURL(pdfBlob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${ctrl}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 // Uploads the finalized sheet to Fivemanage and returns its public CDN URL (or null on failure).
@@ -784,6 +956,44 @@ export async function uploadToFivemanage(blob, filename) {
     console.error("Fivemanage upload failed:", err);
     return null;
   }
+}
+
+const _inflightFmUploads = new Map();
+
+export async function ensureDocumentFivemanageUrl(docOrId) {
+  const doc =
+    typeof docOrId === "object" && docOrId
+      ? docOrId
+      : store.documents.find(d => Number(d.id) === Number(docOrId));
+  if (!doc) return null;
+  if (doc.png_url && String(doc.png_url).includes("fivemanage.com")) {
+    return doc.png_url;
+  }
+  if (_inflightFmUploads.has(doc.id)) {
+    return _inflightFmUploads.get(doc.id);
+  }
+  const promise = (async () => {
+    try {
+      const ctrl = doc.control_no || `UPD-${doc.template_code}-${doc.id}`;
+      const pngBlob = await renderDocumentSheetPngBlob(doc);
+      const fmUrl = await uploadToFivemanage(pngBlob, `${ctrl}.png`);
+      if (fmUrl) {
+        doc.png_url = fmUrl;
+        doc._updated_at = Date.now();
+        saveLocalStore(store);
+        window.dispatchEvent(
+          new CustomEvent("upd:store-updated", { detail: { rev: store.rev, source: "async-upload" } })
+        );
+        return fmUrl;
+      }
+    } catch (_) {
+    } finally {
+      _inflightFmUploads.delete(doc.id);
+    }
+    return doc.png_url || null;
+  })();
+  _inflightFmUploads.set(doc.id, promise);
+  return promise;
 }
 
 export async function postApprovedDocumentToDiscord(doc) {
@@ -808,6 +1018,59 @@ export async function postApprovedDocumentToDiscord(doc) {
       doc.png_url = fmUrl;
       doc._updated_at = Date.now();
       saveLocalStore(store);
+      window.dispatchEvent(
+        new CustomEvent("upd:store-updated", { detail: { rev: store.rev, source: "async-upload" } })
+      );
+    }
+
+    const fields = [
+      {
+        name: isPt ? "Nº de Controle Oficial" : "Official Control No.",
+        value: `\`${ctrl}\``,
+        inline: true
+      },
+      {
+        name: isPt ? "Classificação" : "Classification",
+        value:
+          doc.category === "doj"
+            ? isPt
+              ? "Processo Judicial DOJ"
+              : "DOJ Judicial Filing"
+            : isPt
+              ? "Certificação Interna UPD"
+              : "Internal UPD Record",
+        inline: true
+      },
+      {
+        name: isPt ? "Idioma" : "Language",
+        value: isPt ? "🇧🇷 Português" : "🇺🇸 English",
+        inline: true
+      },
+      {
+        name: isPt ? "Oficial Requerente / Emissor" : "Submitting / Issuing Officer",
+        value: `${doc.issuer_rank} **${doc.issuer_name}** (Badge #${doc.issuer_badge})`,
+        inline: true
+      },
+      {
+        name: isPt ? "Contra-Assinado Por (Comando)" : "Counter-Signed By (Command)",
+        value: `${doc.approver_rank} **${doc.approver_name}** (Badge #${doc.approver_badge})`,
+        inline: true
+      },
+      {
+        name: isPt ? "Autenticidade Pública" : "Public Verification",
+        value: isPt
+          ? `[🔍 Verificar Registro Oficial](${verifyUrl})`
+          : `[🔍 Verify Official Record](${verifyUrl})`,
+        inline: true
+      }
+    ];
+
+    if (fmUrl) {
+      fields.push({
+        name: isPt ? "🖼️ Link da Imagem (Fivemanage)" : "🖼️ Image Link (Fivemanage)",
+        value: `\`${fmUrl}\`\n[🔗 ${isPt ? "Abrir Imagem no Fivemanage" : "Open Image on Fivemanage"}](${fmUrl})`,
+        inline: false
+      });
     }
 
     const embed = {
@@ -817,47 +1080,7 @@ export async function postApprovedDocumentToDiscord(doc) {
       description: isPt
         ? `Documento oficial emitido, autenticado e contra-assinado no **Portal de Comando e Registros da Unified Police Department**.`
         : `Official record issued, authenticated, and counter-signed in the **Unified Police Department Command & Records Portal**.`,
-      fields: [
-        {
-          name: isPt ? "Nº de Controle Oficial" : "Official Control No.",
-          value: `\`${ctrl}\``,
-          inline: true
-        },
-        {
-          name: isPt ? "Classificação" : "Classification",
-          value:
-            doc.category === "doj"
-              ? isPt
-                ? "Processo Judicial DOJ"
-                : "DOJ Judicial Filing"
-              : isPt
-                ? "Certificação Interna UPD"
-                : "Internal UPD Record",
-          inline: true
-        },
-        {
-          name: isPt ? "Idioma" : "Language",
-          value: isPt ? "🇧🇷 Português" : "🇺🇸 English",
-          inline: true
-        },
-        {
-          name: isPt ? "Oficial Requerente / Emissor" : "Submitting / Issuing Officer",
-          value: `${doc.issuer_rank} **${doc.issuer_name}** (Badge #${doc.issuer_badge})`,
-          inline: true
-        },
-        {
-          name: isPt ? "Contra-Assinado Por (Comando)" : "Counter-Signed By (Command)",
-          value: `${doc.approver_rank} **${doc.approver_name}** (Badge #${doc.approver_badge})`,
-          inline: true
-        },
-        {
-          name: isPt ? "Autenticidade Pública" : "Public Verification",
-          value: isPt
-            ? `[🔍 Verificar Registro Oficial](${verifyUrl})`
-            : `[🔍 Verify Official Record](${verifyUrl})`,
-          inline: true
-        }
-      ],
+      fields,
       image: { url: fmUrl || `attachment://${filename}` },
       footer: {
         text: "Unified Police Department · Records & Judicial Filing Bureau"
@@ -891,6 +1114,9 @@ export async function postApprovedDocumentToDiscord(doc) {
       }
       doc._updated_at = Date.now();
       saveLocalStore(store);
+      window.dispatchEvent(
+        new CustomEvent("upd:store-updated", { detail: { rev: store.rev, source: "async-upload" } })
+      );
       return msg;
     }
   } catch (err) {
@@ -1333,6 +1559,7 @@ export function verifyControlNoLocal(controlNo) {
     issued_by: `${doc.issuer_rank} ${doc.issuer_name} (Badge #${doc.issuer_badge})`,
     approved_by: `${doc.approver_rank} ${doc.approver_name} (Badge #${doc.approver_badge})`,
     approved_at: doc.approved_at,
+    png_url: doc.png_url || null,
     lang: doc.lang || doc.data_json?._lang || "pt",
     revoked_at: doc.revoked_at || null,
     revocation_note: doc.status === "REVOKED" ? doc.reject_reason : null

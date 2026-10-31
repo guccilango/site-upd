@@ -859,3 +859,68 @@ html, body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ─── Print / Save-as-PDF Styles (Isolate Official US-Letter Sheet Only) ──── */
+
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 6mm;
+  }
+
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .mobile-topbar,
+  .sidebar,
+  .page-header,
+  .kpi-strip,
+  .grid-asymmetric,
+  .no-print,
+  .fvm-link-bar,
+  .sheet-toolbar,
+  .composer-layout > section.panel {
+    display: none !important;
+  }
+
+  .app-shell {
+    display: block !important;
+    min-height: 0 !important;
+  }
+
+  .canvas {
+    padding: 0 !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+  }
+
+  #inspect-drawer,
+  .inspect-sheet-panel,
+  .printable-sheet-wrap,
+  .composer-layout,
+  .sheet-stage {
+    display: block !important;
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+  }
+
+  .us-letter-sheet {
+    width: 100% !important;
+    max-width: 780px !important;
+    margin: 0 auto !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}

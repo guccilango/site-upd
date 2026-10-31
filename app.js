@@ -14,8 +14,10 @@ import {
   saveOfficerLocal,
   saveRankLocal,
   saveTemplateLocal,
-  pullSharedStore
-} from "./api.js?v=5";
+  pullSharedStore,
+  downloadDocumentPdf,
+  ensureDocumentFivemanageUrl
+} from "./api.js?v=6";
 import {
   DOC_I18N,
   getLanguage,
@@ -24,7 +26,26 @@ import {
   setDocumentLanguage,
   t,
   resolveTemplateForLang
-} from "./i18n.js?v=5";
+} from "./i18n.js?v=6";
+
+function copyTextWithFeedback(text, btnEl) {
+  if (!text) return;
+  const doFeedback = () => {
+    if (!btnEl) return;
+    const orig = btnEl.innerHTML;
+    btnEl.innerHTML = "✅ Copiado!";
+    setTimeout(() => {
+      btnEl.innerHTML = orig;
+    }, 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(doFeedback).catch(() => {
+      window.prompt("Copie o link do Fivemanage:", text);
+    });
+  } else {
+    window.prompt("Copie o link do Fivemanage:", text);
+  }
+}
 
 function esc(str) {
   return String(str ?? "")
@@ -509,7 +530,25 @@ function renderOverview(container) {
                               ${d.approver_name ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">Signed: ${esc(d.approver_rank)} ${esc(d.approver_name)}</div>` : ""}
                             </td>
                             <td class="num">
-                              <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
+                              <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;align-items:center;">
+                                ${
+                                  d.png_url
+                                    ? `
+                                      <button type="button" class="btn btn-secondary" data-copy-fm="${esc(d.png_url)}" title="${esc(d.png_url)}">
+                                        📋 ${lang === "pt" ? "Copiar Link" : "Copy Link"}
+                                      </button>
+                                      <a class="btn btn-secondary" href="${esc(d.png_url)}" target="_blank" rel="noopener" title="${esc(d.png_url)}">
+                                        🖼️ Fivemanage
+                                      </a>
+                                    `
+                                    : d.status === "APPROVED"
+                                      ? `
+                                        <button type="button" class="btn btn-secondary" data-gen-fm="${d.id}">
+                                          ⏳ Fivemanage
+                                        </button>
+                                      `
+                                      : ""
+                                }
                                 <button type="button" class="btn btn-secondary" data-inspect="${d.id}">${esc(t("btnViewDoc"))}</button>
                                 ${canApp ? `<button type="button" class="btn btn-primary" data-quick-approve="${d.id}">✅ ${esc(t("btnApprove"))}</button>` : ""}
                               </div>
@@ -614,6 +653,21 @@ function renderOverview(container) {
     });
   });
 
+  container.querySelectorAll("[data-copy-fm]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      copyTextWithFeedback(btn.getAttribute("data-copy-fm"), btn);
+    });
+  });
+
+  container.querySelectorAll("[data-gen-fm]").forEach(btn => {
+    const id = Number(btn.getAttribute("data-gen-fm"));
+    ensureDocumentFivemanageUrl(id);
+    btn.addEventListener("click", () => {
+      btn.textContent = "⏳ Enviando...";
+      ensureDocumentFivemanageUrl(id);
+    });
+  });
+
   if (selectedInspectDocId) {
     renderInspectModal(container);
   }
@@ -629,9 +683,13 @@ function renderInspectModal(container) {
   const canApp = doc.status === "PENDING" && canApproveDocument(officer, doc);
   const lang = getLanguage();
 
+  if (doc.status === "APPROVED" && (!doc.png_url || !String(doc.png_url).includes("fivemanage.com"))) {
+    ensureDocumentFivemanageUrl(doc);
+  }
+
   drawer.innerHTML = `
-    <section class="panel" style="margin-top:8px;">
-      <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+    <section class="panel inspect-sheet-panel" style="margin-top:8px;">
+      <div class="panel-header no-print" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
         <div>
           <h2 class="panel-title">Official Sheet Inspection — ${esc(doc.control_no || `Draft #${doc.id}`)}</h2>
           <div class="panel-sub">
@@ -641,13 +699,44 @@ function renderInspectModal(container) {
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           ${canApp ? `<button type="button" class="btn btn-primary" id="btn-modal-approve">✅ ${esc(t("btnApprove"))}</button>` : ""}
           ${canApp ? `<button type="button" class="btn btn-danger" id="btn-modal-reject">${esc(t("btnReject"))}</button>` : ""}
-          ${doc.png_url ? `<a class="btn btn-secondary" href="${esc(doc.png_url)}" target="_blank" rel="noopener">🖼️ ${lang === "pt" ? "Imagem (Fivemanage)" : "Image (Fivemanage)"}</a>` : ""}
-          <button type="button" class="btn btn-secondary" id="btn-modal-print">🖨️ ${lang === "pt" ? "Imprimir / PDF" : "Print / Save PDF"}</button>
+          <button type="button" class="btn btn-primary" id="btn-modal-pdf">📥 ${lang === "pt" ? "Salvar em PDF" : "Save as PDF"}</button>
+          <button type="button" class="btn btn-secondary" id="btn-modal-print">🖨️ ${lang === "pt" ? "Imprimir Folha" : "Print Sheet"}</button>
           ${doc.status === "APPROVED" && officer.is_admin ? `<button type="button" class="btn btn-danger" id="btn-modal-revoke">${esc(t("btnRevoke"))}</button>` : ""}
           <button type="button" class="btn btn-secondary" id="btn-close-inspect">${lang === "pt" ? "Fechar" : "Close Preview"}</button>
         </div>
       </div>
-      <div style="max-width:780px;margin:0 auto;">
+
+      ${
+        doc.png_url
+          ? `
+            <div class="fvm-link-bar no-print" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;margin-bottom:16px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-control);">
+              <strong style="font-size:12.5px;white-space:nowrap;">🖼️ ${lang === "pt" ? "Link Fivemanage:" : "Fivemanage Link:"}</strong>
+              <input
+                type="text"
+                class="input mono"
+                id="fvm-url-input"
+                readonly
+                value="${esc(doc.png_url)}"
+                style="flex:1;min-width:220px;height:30px;font-size:12.5px;background:var(--surface);"
+              />
+              <button type="button" class="btn btn-secondary" id="btn-copy-fm-modal">
+                📋 ${lang === "pt" ? "Copiar Link" : "Copy Link"}
+              </button>
+              <a class="btn btn-secondary" href="${esc(doc.png_url)}" target="_blank" rel="noopener">
+                ↗️ ${lang === "pt" ? "Abrir Imagem" : "Open Image"}
+              </a>
+            </div>
+          `
+          : doc.status === "APPROVED"
+            ? `
+              <div class="fvm-link-bar no-print" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;margin-bottom:16px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-control);font-size:12.5px;color:var(--muted);">
+                <span>⏳ ${lang === "pt" ? "Gerando link da imagem no Fivemanage..." : "Uploading image to Fivemanage..."}</span>
+              </div>
+            `
+            : ""
+      }
+
+      <div class="printable-sheet-wrap" style="max-width:780px;margin:0 auto;">
         ${buildLiveSheetHtml(tpl, doc.data_json, {
           status: doc.status,
           control_no: doc.control_no,
@@ -667,6 +756,33 @@ function renderInspectModal(container) {
     selectedInspectDocId = null;
     drawer.innerHTML = "";
   });
+
+  const fmInput = drawer.querySelector("#fvm-url-input");
+  if (fmInput) {
+    fmInput.addEventListener("click", () => fmInput.select());
+  }
+
+  const copyFmBtn = drawer.querySelector("#btn-copy-fm-modal");
+  if (copyFmBtn) {
+    copyFmBtn.addEventListener("click", () => {
+      copyTextWithFeedback(doc.png_url, copyFmBtn);
+    });
+  }
+
+  const pdfBtn = drawer.querySelector("#btn-modal-pdf");
+  if (pdfBtn) {
+    pdfBtn.addEventListener("click", async () => {
+      const origText = pdfBtn.innerHTML;
+      pdfBtn.disabled = true;
+      pdfBtn.innerHTML = `⏳ ${lang === "pt" ? "Gerando PDF..." : "Saving PDF..."}`;
+      try {
+        await downloadDocumentPdf(doc);
+      } finally {
+        pdfBtn.disabled = false;
+        pdfBtn.innerHTML = origText;
+      }
+    });
+  }
 
   const printBtn = drawer.querySelector("#btn-modal-print");
   if (printBtn) {
@@ -1024,6 +1140,9 @@ function renderApprovals(container) {
                       <span class="mono" style="margin-left:8px;">${esc(activeDoc.issuer_name)} (#${esc(activeDoc.issuer_badge)})</span>
                     </div>
                     <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                      <button type="button" class="btn btn-secondary" id="btn-approval-pdf">
+                        📥 ${lang === "pt" ? "Salvar em PDF" : "Save as PDF"}
+                      </button>
                       <button type="button" class="btn btn-primary" data-approve-id="${activeDoc.id}" ${!canApproveDocument(officer, activeDoc) ? "disabled" : ""}>
                         ✅ ${esc(t("btnApprove"))}
                       </button>
@@ -1062,6 +1181,13 @@ function renderApprovals(container) {
       renderApp();
     });
   });
+
+  const appPdfBtn = container.querySelector("#btn-approval-pdf");
+  if (appPdfBtn && activeDoc) {
+    appPdfBtn.addEventListener("click", async () => {
+      await downloadDocumentPdf(activeDoc);
+    });
+  }
 
   container.querySelectorAll("[data-select-pending]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1491,7 +1617,7 @@ export function renderApp() {
 window.addEventListener("hashchange", renderApp);
 window.addEventListener("upd:store-updated", e => {
   const src = e.detail?.source;
-  if (src !== "cloud" && src !== "tab") return;
+  if (src !== "cloud" && src !== "tab" && src !== "async-upload") return;
   if (!getCurrentOfficer()) return;
 
   const activeEl = document.activeElement;
