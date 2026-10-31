@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Mrs+Saint+Delafield&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Public+Sans:wght@400;500;600;700&display=swap');
+/* Flag-only subset of Noto Color Emoji: Windows has no native flag emoji */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&text=%F0%9F%87%A7%F0%9F%87%B7%F0%9F%87%BA%F0%9F%87%B8&display=swap');
 
 :root {
   --ground: #f2f4f7;
@@ -47,7 +49,8 @@ html, body {
   font-size: 14px;
   line-height: 20px;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  /* clip (not hidden): hidden turns body into a scroll container and breaks the sticky sidebar */
+  overflow-x: clip;
 }
 
 .num, .mono {
@@ -59,27 +62,29 @@ html, body {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 244px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   min-height: 100dvh;
 }
 
 .sidebar {
   background: var(--ground);
   border-right: 1px solid var(--border);
-  padding: 20px 12px;
+  padding: 24px 20px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   position: sticky;
   top: 0;
+  align-self: start;
   height: 100dvh;
+  overflow-y: auto;
 }
 
 .brand-switcher {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 8px 16px;
+  padding: 0 0 16px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 16px;
 }
@@ -225,6 +230,13 @@ html, body {
   margin-top: 4px;
   border-bottom: 1px solid var(--rule);
   padding-bottom: 2px;
+}
+
+
+.lang-switch .flag {
+  font-family: "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  font-size: 18px;
+  line-height: 1;
 }
 
 /* ─── Mobile Top Bar ──────────────────────────────────────────────────────── */
@@ -564,9 +576,9 @@ html, body {
 
 /* Faithful US-Letter Official Sheet Live Replica */
 .us-letter-sheet {
-  background: #fcfbf7;
+  background: #ffffff;
   color: #141619;
-  border: 2px solid var(--navy);
+  border: 1px solid var(--border);
   padding: 4px;
   position: relative;
   overflow: hidden;
@@ -574,7 +586,7 @@ html, body {
 }
 
 .us-letter-inner {
-  border: 1px solid var(--gold);
+  border: 1px solid var(--border);
   padding: 22px 24px 18px;
   position: relative;
   min-height: 690px;
@@ -601,12 +613,12 @@ html, body {
   left: 50%;
   transform: translate(-50%, -50%) rotate(-32deg);
   font-family: var(--font);
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 700;
-  color: rgba(158, 27, 27, 0.13);
+  color: rgba(158, 27, 27, 0.16);
   white-space: nowrap;
   pointer-events: none;
-  z-index: 1;
+  z-index: 5;
   letter-spacing: 0.04em;
 }
 
@@ -639,30 +651,30 @@ html, body {
 
 .sheet-dept-title {
   font-family: var(--font);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--navy);
-  line-height: 16px;
+  line-height: 18px;
 }
 
 .sheet-dept-sub {
   font-family: var(--font);
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--gold);
-  line-height: 13px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy);
+  line-height: 15px;
 }
 
 .sheet-dept-juris {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
 .sheet-masthead-right {
   text-align: right;
   font-family: var(--font);
-  font-size: 10px;
-  line-height: 13px;
+  font-size: 12px;
+  line-height: 16px;
   color: var(--muted);
 }
 
@@ -672,23 +684,23 @@ html, body {
 
 .sheet-gold-rule {
   height: 1px;
-  background: var(--gold);
+  background: var(--border);
   margin-bottom: 8px;
 }
 
 .sheet-caption-box {
-  background: #f3f0e6;
-  border: 1px solid var(--navy);
+  background: var(--raised);
+  border: 1px solid var(--border);
   text-align: center;
-  padding: 6px 10px;
+  padding: 8px 12px;
   margin-bottom: 10px;
 }
 
 .sheet-court-line {
   font-weight: 700;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--navy);
-  border-bottom: 1px solid #d5d8e0;
+  border-bottom: 1px solid var(--border);
   padding-bottom: 4px;
   margin-bottom: 4px;
   white-space: pre-line;
@@ -697,14 +709,14 @@ html, body {
 .sheet-doc-title {
   font-family: var(--font);
   font-weight: 700;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--navy);
   white-space: pre-line;
 }
 
 .sheet-body-text {
-  font-size: 12px;
-  line-height: 16.5px;
+  font-size: 13px;
+  line-height: 18px;
   text-align: justify;
   color: #141619;
   white-space: pre-line;
@@ -714,8 +726,8 @@ html, body {
   position: relative;
   z-index: 2;
   margin-top: 16px;
-  background: #faf8f1;
-  border: 1px solid #cfd5df;
+  background: var(--raised);
+  border: 1px solid var(--border);
   padding: 10px 12px;
   display: grid;
   grid-template-columns: 1fr 110px 1fr;
@@ -726,7 +738,7 @@ html, body {
 
 .sheet-sig-role {
   font-family: var(--font);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--muted);
 }
@@ -747,13 +759,13 @@ html, body {
 
 .sheet-sig-name {
   font-family: var(--font);
-  font-size: 10px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--navy);
 }
 
 .sheet-sig-meta {
-  font-size: 10px;
+  font-size: 12px;
   color: #141619;
 }
 
@@ -767,22 +779,22 @@ html, body {
 
 .sheet-seal-caption {
   font-family: var(--font);
-  font-size: 8px;
-  font-weight: 700;
-  color: var(--gold);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy);
 }
 
 .sheet-footer-bar {
   position: relative;
   z-index: 2;
-  border-top: 1px solid var(--navy);
+  border-top: 1px solid var(--border);
   margin-top: 10px;
   padding-top: 6px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-family: var(--font);
-  font-size: 9.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -823,6 +835,7 @@ html, body {
   .sidebar {
     display: none;
     position: fixed;
+    padding: 20px;
     inset: 48px 0 0 0;
     width: 100%;
     height: calc(100dvh - 48px);
@@ -833,7 +846,12 @@ html, body {
     display: flex;
   }
   .canvas {
-    padding: 20px 16px 40px;
+    padding: 20px 24px 40px;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .panel {
+    padding: 16px;
   }
   .kpi-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -880,6 +898,7 @@ html, body {
   }
 
   .mobile-topbar,
+  .lang-switch,
   .sidebar,
   .page-header,
   .kpi-strip,
@@ -913,7 +932,7 @@ html, body {
     padding: 0 !important;
     margin: 0 auto !important;
     max-width: 100% !important;
-    box-shadow: none !important;
+    box-shadow: none !important; /* taste-skill-ignore */
   }
 
   .us-letter-sheet {

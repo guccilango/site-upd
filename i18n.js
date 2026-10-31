@@ -2,66 +2,64 @@
 
 export const UI_I18N = {
   pt: {
-    flag: "🇧🇷",
     langName: "Português",
-    altFlag: "🇺🇸",
     altLangName: "English",
     brandTitle: "UPD Records Bureau",
-    brandSub: "Los Santos · Registros Judiciais e Internos",
-    restrictedPortal: "Los Santos · Portal Restrito",
-    publicVerifier: "Validador Público de QR",
-    verifyControlNo: "Verificar Nº de Controle",
-    newDocument: "Novo Documento Oficial",
-    deptNotice: "Unified Police Department · Registros de Comando e Justiça",
+    brandSub: "Divisão de Registros",
+    restrictedPortal: "Acesso restrito",
+    publicVerifier: "Consulta Pública",
+    verifyControlNo: "Consultar Registro",
+    newDocument: "Novo Documento",
+    deptNotice: "Unified Police Department",
 
     // Login screen
-    loginTitle: "Unified Police Department — Portal de Comando e Registros",
-    loginSub: "Acesso restrito ao Quadro de Oficiais de Comando e Supervisores da UPD",
-    loginAuthTitle: "Autenticação de Comando via Discord",
-    loginAuthSub: "Valida sua filiação e cargo de Supervisão no servidor oficial",
-    loginAuthDesc: "Entre com sua conta oficial do Discord. O acesso é concedido automaticamente a membros com cargo de supervisão ou admitidos pelo Comando.",
+    loginTitle: "Portal de Registros",
+    loginSub: "Sistema oficial de emissão e registro de documentos.",
+    loginAuthTitle: "Identificação",
+    loginAuthSub: "Acesso restrito a oficiais autorizados.",
+    loginAuthDesc: "Conecte sua conta do Discord para acessar o painel de emissão e assinaturas.",
     btnDiscordLogin: "Entrar com Discord",
-    authorizedStaff: "Oficiais de Comando Autorizados",
-    recoveryLoginBtn: "Login de Contingência do Comando",
-    hideRecoveryBtn: "Ocultar Login de Contingência",
-    recoveryCredLabel: "ID da Credencial Autorizada",
-    recoveryCredPlaceholder: "Digite seu Discord Snowflake ID",
-    recoverySigLabel: "Nome Roleplay do Oficial (Assinatura)",
-    recoveryBadgeLabel: "Distintivo #",
-    recoveryKeyLabel: "Chave de Supervisão do Comando",
-    recoveryKeyPlaceholder: "Digite a chave do comando",
-    recoverySubmitBtn: "Autenticar Sessão de Comando",
+    authorizedStaff: "Oficiais autorizados",
+    recoveryLoginBtn: "Acesso alternativo",
+    hideRecoveryBtn: "Ocultar",
+    recoveryCredLabel: "ID do Discord",
+    recoveryCredPlaceholder: "ID numérico",
+    recoverySigLabel: "Nome do oficial",
+    recoveryBadgeLabel: "Distintivo",
+    recoveryKeyLabel: "Chave de acesso",
+    recoveryKeyPlaceholder: "Chave de acesso",
+    recoverySubmitBtn: "Entrar",
 
     // Navigation
-    navOperations: "Operações",
-    navOverview: "Visão Geral & Registros",
-    navIssue: "Emitir Documento",
-    navApprovals: "Aprovações do Comando",
-    navAdmin: "Administração do Comando",
-    navOfficers: "Oficiais & Admissão",
-    navRanks: "Patentes & Sincronização Discord",
-    navTemplates: "Modelos de Documento",
-    signOut: "Encerrar Sessão",
+    navOperations: "Documentos",
+    navOverview: "Registros",
+    navIssue: "Novo Documento",
+    navApprovals: "Aprovações",
+    navAdmin: "Administração",
+    navOfficers: "Oficiais",
+    navRanks: "Patentes",
+    navTemplates: "Modelos",
+    signOut: "Sair",
 
     // Overview KPIs & Table
-    kpiPendingLabel: "Aguardando assinatura de comando",
-    kpiPendingCap: "Commander+ para DOJ · Corporal+ para interno",
-    kpiDojLabel: "Processos judiciais DOJ aprovados",
-    kpiDojCap: "Mandados de busca, prisão, 2703(d) e pacificação",
-    kpiInternalLabel: "Registros internos aprovados",
-    kpiInternalCap: "Certificações de tiro e condecorações",
-    kpiOfficersLabel: "Oficiais juramentados ativos",
-    kpiOfficersCap: "de {total} registrados no bureau",
-    ledgerTitle: "Registro Geral de Processos e Documentos",
+    kpiPendingLabel: "Pendentes",
+    kpiPendingCap: "Aguardando assinatura",
+    kpiDojLabel: "Processos judiciais",
+    kpiDojCap: "Aprovados pelo comando",
+    kpiInternalLabel: "Registros internos",
+    kpiInternalCap: "Aprovados",
+    kpiOfficersLabel: "Oficiais ativos",
+    kpiOfficersCap: "{total} cadastrados",
+    ledgerTitle: "Documentos Emitidos",
     filterAll: "Todos ({count})",
-    filterPending: "Aguardando Aprovação ({count})",
+    filterPending: "Pendentes ({count})",
     filterApproved: "Aprovados ({count})",
-    filterMine: "Emitidos por Mim ({count})",
+    filterMine: "Meus ({count})",
     colControlNo: "Nº de Controle",
-    colTemplate: "Tipo / Modelo",
-    colIssuer: "Oficial Emissor",
+    colTemplate: "Tipo",
+    colIssuer: "Emissor",
     colStatus: "Status",
-    colApproval: "Aprovação / Ação",
+    colApproval: "Competência",
     colActions: "Ações",
     btnViewDoc: "Visualizar",
     btnPdf: "PDF",
@@ -69,201 +67,199 @@ export const UI_I18N = {
 
     // Status Pills
     statusApproved: "Aprovado",
-    statusPending: "Pendente de Aprovação",
+    statusPending: "Pendente",
     statusRejected: "Rejeitado",
     statusRevoked: "Revogado",
 
     // Composer
-    composerTitle: "Criador de Documentos e Mandados Oficiais",
-    composerSub: "Emissão padronizada em papel US-Letter, validação de competência e contra-assinatura hierárquica",
-    docLangLabel: "Idioma do Documento",
-    docLangPt: "🇧🇷 Português (RP Americano Traduzido)",
-    docLangEn: "🇺🇸 English (US Official Standards)",
-    docEmissionLangLabel: "Idioma de Emissão do Documento",
-    docEmissionLangHelp: "Define o idioma em que a folha física oficial (cabeçalho, carimbos, texto e assinaturas) será gerada",
-    btnDocLangPt: "🇧🇷 Documento em Português",
-    btnDocLangEn: "🇺🇸 Document in English",
-    siteLangNotice: "Idioma da Interface do Site",
-    templatePickerLabel: "Selecione o Modelo de Documento",
-    fieldAuthorityNotice: "Patente mínima para emissão: Nível {minIssue} · Contra-assinatura exigida: Nível {minApprove}+",
-    btnSubmitDraft: "Enviar Minuta para Aprovação do Comando",
-    liveStageTitle: "Folha US-Letter Oficial (8.5 × 11 pol.)",
-    liveStageSub: "Atualiza instantaneamente conforme você digita",
+    composerTitle: "Emissão de Documento",
+    composerSub: "Preencha os campos para emissão oficial.",
+    docLangLabel: "Idioma",
+    docLangPt: "Português",
+    docLangEn: "English",
+    docEmissionLangLabel: "Idioma do Documento",
+    docEmissionLangHelp: "",
+    btnDocLangPt: "Português",
+    btnDocLangEn: "English",
+    siteLangNotice: "Idioma da interface",
+    templatePickerLabel: "Modelo",
+    fieldAuthorityNotice: "Emissão: Nível {minIssue} · Assinatura: Nível {minApprove}+",
+    btnSubmitDraft: "Enviar para aprovação",
+    liveStageTitle: "Documento oficial",
+    liveStageSub: "Pré-visualização em tempo real",
 
     // Approvals View
-    approvalsTitle: "Fila de Contra-Assinatura do Comando",
-    approvalsSub: "Oficiais de Comando (Corporal+ interno / Commander+ DOJ) devem auditar os fatos da causa provável antes de contra-assinar",
-    btnApprove: "Contra-Assinar & Aprovar",
-    btnReject: "Rejeitar com Justificativa",
-    btnRevoke: "Revogar Documento",
-    noPendingDocs: "Nenhum documento aguardando contra-assinatura no momento.",
+    approvalsTitle: "Aprovações Pendentes",
+    approvalsSub: "Minutas aguardando revisão e assinatura de autoridade de comando.",
+    btnApprove: "Aprovar",
+    btnReject: "Rejeitar",
+    btnRevoke: "Revogar",
+    noPendingDocs: "Nenhum documento aguardando assinatura.",
 
     // Officers View
-    officersTitle: "Quadro de Oficiais Juramentados & Admissões",
-    officersSub: "Gerencie o status de oficiais autorizados a emitir e assinar documentos no bureau",
-    colOfficerName: "Oficial / Identificação",
-    colRank: "Patente & Nível",
-    colSig: "Assinatura Cursiva",
+    officersTitle: "Quadro de Oficiais",
+    officersSub: "Oficiais com permissão de emissão e assinatura.",
+    colOfficerName: "Oficial",
+    colRank: "Patente",
+    colSig: "Assinatura",
     btnAdmit: "Admitir",
     btnSuspend: "Suspender",
-    panelAddOfficer: "Registrar / Admitir Oficial Manualmente",
+    panelAddOfficer: "Cadastrar Oficial",
 
     // Ranks View
-    ranksTitle: "Hierarquia de Patentes & Vinculação Discord",
-    ranksSub: "Nível 5+ (Corporal+) contra-assina registros internos · Nível 11+ (Commander+) contra-assina processos do DOJ",
+    ranksTitle: "Hierarquia de Patentes",
+    ranksSub: "Nível 5+ assina registros internos. Nível 11+ assina processos judiciais.",
     colLevel: "Nível",
-    colRankTitle: "Título da Patente",
-    colAuthority: "Competência de Comando",
-    colRoleInput: "Cargo do Discord",
+    colRankTitle: "Patente",
+    colAuthority: "Autoridade",
+    colRoleInput: "ID do Cargo (Discord)",
     btnSave: "Salvar",
-    panelAddRank: "Adicionar / Configurar Patente",
+    panelAddRank: "Nova Patente",
 
     // Templates View
-    templatesTitle: "Modelos Oficiais de Documentos & Seções",
-    templatesSub: "Configuração das seções legislativas, cabeçalho de tribunal e variáveis dinâmicas",
-    btnSaveTemplate: "Salvar Alterações do Modelo",
+    templatesTitle: "Modelos de Documento",
+    templatesSub: "Configuração dos modelos do sistema.",
+    btnSaveTemplate: "Salvar Modelo",
 
     // QR Verifier
-    qrTitle: "Registro Público de Autenticidade Documental",
-    qrSub: "Unified Police Department · Condado de Los Santos · Validação Criptográfica e Nº de Controle",
-    qrPlaceholder: "Digite o Nº de Controle (ex: UPD-SW-2026-0001 ou UPD-FQ-2026-0001)",
-    btnVerify: "Verificar Registro",
-    backToPortal: "Voltar ao Portal do Oficial",
-    verifiedValid: "VÁLIDO · AUTENTICADO",
-    recordNotFound: "Registro Não Encontrado",
-    notFoundDesc: "Nenhum registro oficial correspondente ao número de controle {code} foi localizado no Registro da UPD."
+    qrTitle: "Consulta de Autenticidade",
+    qrSub: "Unified Police Department · Validação de documentos oficiais",
+    qrPlaceholder: "Nº de Controle (ex: UPD-SW-2026-0001)",
+    btnVerify: "Consultar",
+    backToPortal: "Voltar ao Portal",
+    verifiedValid: "VÁLIDO",
+    recordNotFound: "Registro Não Localizado",
+    notFoundDesc: "Nenhum registro oficial encontrado para o número de controle {code}."
   },
   en: {
-    flag: "🇺🇸",
     langName: "English",
-    altFlag: "🇧🇷",
     altLangName: "Português",
     brandTitle: "UPD Records Bureau",
-    brandSub: "Los Santos · Judicial & Internal Records",
-    restrictedPortal: "Los Santos · Restricted Portal",
-    publicVerifier: "Public QR Verifier",
+    brandSub: "Records Division",
+    restrictedPortal: "Restricted Access",
+    publicVerifier: "Public Verification",
     verifyControlNo: "Verify Control No.",
-    newDocument: "New Official Document",
-    deptNotice: "Unified Police Department · Command & Judicial Records",
+    newDocument: "New Document",
+    deptNotice: "Unified Police Department",
 
     // Login screen
-    loginTitle: "Unified Police Department — Command & Records Portal",
-    loginSub: "Restricted to authenticated UPD Command & Supervisory personnel",
-    loginAuthTitle: "Discord Command Authentication",
-    loginAuthSub: "Verifies your membership and Supervisory role on the official server",
-    loginAuthDesc: "Sign in with your official Discord account. Access is automatically granted to members holding the UPD Command / Supervision role or admitted by Command Staff.",
+    loginTitle: "Records Portal",
+    loginSub: "Official records and document management system.",
+    loginAuthTitle: "Authentication",
+    loginAuthSub: "Restricted to authorized personnel.",
+    loginAuthDesc: "Sign in with your Discord account to access the portal.",
     btnDiscordLogin: "Sign in with Discord",
-    authorizedStaff: "Authorized Command Personnel",
-    recoveryLoginBtn: "Command Recovery Login",
-    hideRecoveryBtn: "Hide Recovery Login",
-    recoveryCredLabel: "Authorized Credential ID",
-    recoveryCredPlaceholder: "Enter your Discord ID",
-    recoverySigLabel: "Officer Roleplay Name (Signature)",
-    recoveryBadgeLabel: "Badge #",
-    recoveryKeyLabel: "Command Supervision Key",
-    recoveryKeyPlaceholder: "Enter Command Key",
-    recoverySubmitBtn: "Authenticate Command Session",
+    authorizedStaff: "Authorized Personnel",
+    recoveryLoginBtn: "Alternative Login",
+    hideRecoveryBtn: "Hide",
+    recoveryCredLabel: "Discord ID",
+    recoveryCredPlaceholder: "Numeric ID",
+    recoverySigLabel: "Officer Name",
+    recoveryBadgeLabel: "Badge",
+    recoveryKeyLabel: "Access Key",
+    recoveryKeyPlaceholder: "Access key",
+    recoverySubmitBtn: "Sign in",
 
     // Navigation
-    navOperations: "Operations",
-    navOverview: "Overview & Ledger",
-    navIssue: "Issue Document",
-    navApprovals: "Command Approvals",
-    navAdmin: "Command Administration",
-    navOfficers: "Officers & Admission",
-    navRanks: "Ranks & Discord Sync",
-    navTemplates: "Document Templates",
+    navOperations: "Documents",
+    navOverview: "Ledger",
+    navIssue: "New Document",
+    navApprovals: "Approvals",
+    navAdmin: "Administration",
+    navOfficers: "Officers",
+    navRanks: "Ranks",
+    navTemplates: "Templates",
     signOut: "Sign Out",
 
     // Overview KPIs & Table
-    kpiPendingLabel: "Awaiting command signature",
-    kpiPendingCap: "Commander+ for DOJ · Corporal+ for internal",
-    kpiDojLabel: "Approved DOJ filings",
-    kpiDojCap: "Warrants, 2703(d) orders & operations",
-    kpiInternalLabel: "Approved internal records",
-    kpiInternalCap: "Firearms certifications & commendations",
-    kpiOfficersLabel: "Admitted sworn officers",
-    kpiOfficersCap: "of {total} registered in bureau",
-    ledgerTitle: "Records & Judicial Filings Ledger",
+    kpiPendingLabel: "Pending",
+    kpiPendingCap: "Awaiting signature",
+    kpiDojLabel: "Judicial Filings",
+    kpiDojCap: "Approved",
+    kpiInternalLabel: "Internal Records",
+    kpiInternalCap: "Approved",
+    kpiOfficersLabel: "Active Officers",
+    kpiOfficersCap: "{total} registered",
+    ledgerTitle: "Issued Documents",
     filterAll: "All ({count})",
-    filterPending: "Pending Approval ({count})",
+    filterPending: "Pending ({count})",
     filterApproved: "Approved ({count})",
-    filterMine: "Issued by Me ({count})",
+    filterMine: "Mine ({count})",
     colControlNo: "Control No.",
-    colTemplate: "Template / Code",
-    colIssuer: "Issuing Officer",
+    colTemplate: "Type",
+    colIssuer: "Issuer",
     colStatus: "Status",
-    colApproval: "Approval / Authority",
+    colApproval: "Authority",
     colActions: "Actions",
-    btnViewDoc: "View Sheet",
+    btnViewDoc: "View",
     btnPdf: "PDF",
-    btnPng: "PNG Image",
+    btnPng: "Image",
 
     // Status Pills
     statusApproved: "Approved",
-    statusPending: "Pending approval",
+    statusPending: "Pending",
     statusRejected: "Rejected",
     statusRevoked: "Revoked",
 
     // Composer
-    composerTitle: "Official Document & Warrant Composer",
-    composerSub: "Standardized US-Letter emission, authority verification, and hierarchical counter-signature",
-    docLangLabel: "Document Language",
-    docLangPt: "🇧🇷 Portuguese (Translated US RP)",
-    docLangEn: "🇺🇸 English (US Official Standards)",
-    docEmissionLangLabel: "Document Emission Language",
-    docEmissionLangHelp: "Controls the language printed on the official physical sheet (masthead, stamps, body text, and signatures)",
-    btnDocLangPt: "🇧🇷 Document in Portuguese",
-    btnDocLangEn: "🇺🇸 Document in English",
-    siteLangNotice: "Site Interface Language",
-    templatePickerLabel: "Select Document Template",
-    fieldAuthorityNotice: "Minimum rank to issue: Level {minIssue} · Counter-signature required: Level {minApprove}+",
-    btnSubmitDraft: "Submit Draft for Command Approval",
-    liveStageTitle: "Live US-Letter Sheet (8.5 × 11 in)",
-    liveStageSub: "Updates as you type",
+    composerTitle: "Issue Document",
+    composerSub: "Complete the fields to submit for approval.",
+    docLangLabel: "Language",
+    docLangPt: "Português",
+    docLangEn: "English",
+    docEmissionLangLabel: "Document Language",
+    docEmissionLangHelp: "",
+    btnDocLangPt: "Português",
+    btnDocLangEn: "English",
+    siteLangNotice: "Interface language",
+    templatePickerLabel: "Template",
+    fieldAuthorityNotice: "Issue: Level {minIssue} · Approval: Level {minApprove}+",
+    btnSubmitDraft: "Submit for Approval",
+    liveStageTitle: "Official Document",
+    liveStageSub: "Live preview",
 
     // Approvals View
-    approvalsTitle: "Command Counter-Signature Queue",
-    approvalsSub: "Command Officers (Corporal+ internal / Commander+ DOJ) must audit probable cause facts before signing",
-    btnApprove: "Approve & Counter-Sign",
-    btnReject: "Reject with Reason",
-    btnRevoke: "Revoke Document",
-    noPendingDocs: "No documents currently awaiting command signature.",
+    approvalsTitle: "Pending Approvals",
+    approvalsSub: "Drafts awaiting review and counter-signature.",
+    btnApprove: "Approve",
+    btnReject: "Reject",
+    btnRevoke: "Revoke",
+    noPendingDocs: "No documents awaiting approval.",
 
     // Officers View
-    officersTitle: "Sworn Officer Roster & Admission",
-    officersSub: "Manage officer admission status and command signing privileges",
-    colOfficerName: "Officer / Identifier",
-    colRank: "Rank & Level",
-    colSig: "Cursive Signature",
+    officersTitle: "Officer Roster",
+    officersSub: "Personnel authorized to issue and sign documents.",
+    colOfficerName: "Officer",
+    colRank: "Rank",
+    colSig: "Signature",
     btnAdmit: "Admit",
     btnSuspend: "Suspend",
-    panelAddOfficer: "Register / Admit Officer Manually",
+    panelAddOfficer: "Register Officer",
 
     // Ranks View
-    ranksTitle: "Rank Hierarchy & Discord Role Mapping",
-    ranksSub: "Level 5+ (Corporal+) counter-signs internal records · Level 11+ (Commander+) counter-signs DOJ filings",
+    ranksTitle: "Rank Hierarchy",
+    ranksSub: "Level 5+ signs internal records. Level 11+ signs judicial filings.",
     colLevel: "Level",
-    colRankTitle: "Rank Title",
-    colAuthority: "Approval Authority",
+    colRankTitle: "Rank",
+    colAuthority: "Authority",
     colRoleInput: "Discord Role ID",
     btnSave: "Save",
-    panelAddRank: "Add / Customize Rank",
+    panelAddRank: "New Rank",
 
     // Templates View
-    templatesTitle: "Document Templates & Sections",
-    templatesSub: "Configure statutory sections, court headers, and dynamic placeholders",
-    btnSaveTemplate: "Save Template Modifications",
+    templatesTitle: "Document Templates",
+    templatesSub: "Statutory templates and field definitions.",
+    btnSaveTemplate: "Save Template",
 
     // QR Verifier
-    qrTitle: "Public Record Authenticity Registry",
-    qrSub: "Unified Police Department · County of Los Santos · Cryptographic & Control Number Verification",
-    qrPlaceholder: "Enter Control Number (e.g., UPD-SW-2026-0001 or UPD-FQ-2026-0001)",
-    btnVerify: "Verify Record",
-    backToPortal: "Back to Officer Portal",
-    verifiedValid: "VALID · AUTHENTICATED",
+    qrTitle: "Record Verification",
+    qrSub: "Unified Police Department · Authenticity Registry",
+    qrPlaceholder: "Control No. (e.g. UPD-SW-2026-0001)",
+    btnVerify: "Verify",
+    backToPortal: "Back to Portal",
+    verifiedValid: "VALID",
     recordNotFound: "Record Not Found",
-    notFoundDesc: "No official record matching control number {code} exists in the Unified Police Department Registry."
+    notFoundDesc: "No official record matching control number {code} was found."
   }
 };
 
@@ -273,44 +269,44 @@ export const DOC_I18N = {
     deptSub: "GABINETE DO CHEFE DE POLÍCIA · QUARTEL GENERAL",
     deptJuris: "Estado de San Andreas · Condado de Los Santos",
     ctrlNoLabel: "Nº DE CONTROLE:",
-    dateLabel: "DATA DO REGISTRO:",
+    dateLabel: "DATA:",
     seriesLabel: "SÉRIE:",
     statusLabel: "STATUS:",
     seriesDoj: "PROCESSO JUDICIAL DOJ",
     seriesInternal: "REGISTRO INTERNO",
-    stampDraft: "MINUTA — AGUARDANDO APROVAÇÃO",
+    stampDraft: "MINUTA - AGUARDANDO APROVAÇÃO",
     sealText: "SELO OFICIAL · AUTENTICADO",
-    sigIssuerRole: "OFICIAL REQUERENTE / DECLARANTE",
-    sigApproverRole: "AUTORIDADE DE COMANDO RESPONSÁVEL",
-    sigAwaiting: "[ AGUARDANDO CONTRA-ASSINATURA ]",
+    sigIssuerRole: "OFICIAL DECLARANTE",
+    sigApproverRole: "AUTORIDADE DE COMANDO",
+    sigAwaiting: "[ AGUARDANDO ASSINATURA ]",
     sigReqCommander: "PATENTE EXIGIDA: COMMANDER+ (NÍVEL 11+)",
     sigReqCorporal: "PATENTE EXIGIDA: CORPORAL+ (NÍVEL 5+)",
-    sigCountersigned: "Contra-Assinado: {date}",
-    footerVerifyLabel: "VERIFICAR NO REGISTRO:",
-    footerVerify: "VERIFICAR NO REGISTRO: {url}",
-    footerSensitive: "USO RESTRITO POLICIAL · Página 1 de 1",
+    sigCountersigned: "Assinado: {date}",
+    footerVerifyLabel: "VERIFICAÇÃO:",
+    footerVerify: "VERIFICAÇÃO: {url}",
+    footerSensitive: "USO OFICIAL RESTRITO · Pág. 1/1",
   },
   en: {
     deptTitle: "UNIFIED POLICE DEPARTMENT",
     deptSub: "OFFICE OF THE CHIEF OF POLICE · HEADQUARTERS",
     deptJuris: "State of San Andreas · County of Los Santos",
     ctrlNoLabel: "CONTROL NO.:",
-    dateLabel: "DATE OF RECORD:",
+    dateLabel: "DATE:",
     seriesLabel: "SERIES:",
     statusLabel: "STATUS:",
     seriesDoj: "DOJ JUDICIAL FILING",
     seriesInternal: "INTERNAL RECORD",
-    stampDraft: "DRAFT — PENDING APPROVAL",
+    stampDraft: "DRAFT - PENDING APPROVAL",
     sealText: "OFFICIAL SEAL · AUTHENTICATED",
-    sigIssuerRole: "SUBMITTING / AFFIANT OFFICER",
-    sigApproverRole: "APPROVING COMMAND AUTHORITY",
-    sigAwaiting: "[ AWAITING COUNTER-SIGNATURE ]",
+    sigIssuerRole: "AFFIANT OFFICER",
+    sigApproverRole: "COMMANDING OFFICER",
+    sigAwaiting: "[ AWAITING SIGNATURE ]",
     sigReqCommander: "REQUIRED: COMMANDER+ (LVL 11+)",
     sigReqCorporal: "REQUIRED: CORPORAL+ (LVL 5+)",
-    sigCountersigned: "Counter-Signed: {date}",
-    footerVerifyLabel: "VERIFY REGISTRY:",
-    footerVerify: "VERIFY REGISTRY: {url}",
-    footerSensitive: "LAW ENFORCEMENT SENSITIVE · Page 1 of 1",
+    sigCountersigned: "Signed: {date}",
+    footerVerifyLabel: "VERIFY:",
+    footerVerify: "VERIFY: {url}",
+    footerSensitive: "LAW ENFORCEMENT SENSITIVE · Pg. 1/1",
   }
 };
 
@@ -322,13 +318,13 @@ export const TEMPLATE_TRANSLATIONS = {
       court_header: "NO TRIBUNAL SUPERIOR DO ESTADO DE SAN ANDREAS\nNO E PARA O CONDADO DE LOS SANTOS",
       body: "<b>PROCESSO / DOCKET Nº:</b> {case_no}\n<b>ALVO(S) DA INVESTIGAÇÃO:</b> {target_subject}\n<b>VIOLAÇÕES PENAIS:</b> {statutes_violated}\n<b>PARÂMETROS DE EXECUÇÃO:</b> {night_service}\n\n<b>I. DECLARAÇÃO JURAMENTADA DO OFICIAL DECLARANTE</b>\nEu, <b>{issuer_name}</b>, Distintivo <b>#{issuer_badge}</b>, ocupante do posto de <b>{issuer_rank}</b> do Unified Police Department (UPD), prestando compromisso legal sob pena de perjúrio sob as leis do Estado de San Andreas, declaro ter fundada suspeita e causa provável para crer que evidências materiais de crime grave encontram-se ocultadas no local abaixo descrito.\n\n<b>II. DESCRIÇÃO PORMENORIZADA DO IMÓVEL / LOCAL</b>\n{target_premises}\n\n<b>III. BENS E EVIDÊNCIAS A SEREM APREENDIDOS (ANEXO A)</b>\n{items_to_seize}\n\n<b>IV. DEMONSTRAÇÃO DE CAUSA PROVÁVEL E CIRCUNSTÂNCIAS DOS FATOS</b>\n{probable_cause}\n\n<b>V. REQUERIMENTO FINAL</b>\nDiante do exposto, o Declarante requer a expedição do competente Mandado de Busca e Apreensão por este Tribunal Superior, autorizando qualquer Oficial de Paz do Unified Police Department a adentrar as dependências descritas e apreender os bens especificados.",
       fields: [
-        { key: "case_no", label: "Nº do Processo / Docket", type: "text", required: true, max_length: 60, placeholder: "26-CR-00418" },
-        { key: "target_subject", label: "Alvo(s) da Investigação / Ocupante(s)", type: "text", required: true, max_length: 200, placeholder: "Nome completo, data de nascimento e identificadores conhecidos" },
-        { key: "target_premises", label: "Local da Busca (Endereço e Descrição Completa)", type: "textarea", required: true, max_length: 800, placeholder: "Endereço completo e características físicas do imóvel..." },
-        { key: "statutes_violated", label: "Infrações Penais / Artigos do Código Penal", type: "text", required: true, max_length: 300, placeholder: "Artigos infringidos do Código Penal de San Andreas" },
-        { key: "items_to_seize", label: "Bens e Evidências a Serem Apreendidos (Anexo A)", type: "textarea", required: true, max_length: 1500, placeholder: "1. Armas de fogo, munições e carregadores;\n2. Dispositivos de comunicação e mídias;\n3. Documentos e comprovantes." },
-        { key: "probable_cause", label: "Declaração de Causa Provável (Fatos e Investigação)", type: "textarea", required: true, max_length: 3500, placeholder: "Narrativa detalhada dos atos investigatórios e demonstração dos indícios..." },
-        { key: "night_service", label: "Horário de Cumprimento e Dispensa de Notificação", type: "text", required: true, max_length: 200, placeholder: "Cumprimento diurno padrão (07h às 22h)" }
+        { key: "case_no", label: "Nº do Processo", type: "text", required: true, max_length: 60, placeholder: "26-CR-00418" },
+        { key: "target_subject", label: "Alvo da Investigação", type: "text", required: true, max_length: 200, placeholder: "Nome e identificação do investigado" },
+        { key: "target_premises", label: "Local da Busca", type: "textarea", required: true, max_length: 800, placeholder: "Endereço e características do imóvel" },
+        { key: "statutes_violated", label: "Infrações Penais", type: "text", required: true, max_length: 300, placeholder: "Artigos do Código Penal" },
+        { key: "items_to_seize", label: "Bens e Evidências a Apreender", type: "textarea", required: true, max_length: 1500, placeholder: "1. Armas e munições;\n2. Dispositivos e mídias;\n3. Documentos." },
+        { key: "probable_cause", label: "Causa Provável e Fatos", type: "textarea", required: true, max_length: 3500, placeholder: "Descrição dos fatos e evidências apuradas" },
+        { key: "night_service", label: "Parâmetros de Cumprimento", type: "text", required: true, max_length: 200, placeholder: "Cumprimento diurno (07h às 22h)" }
       ]
     }
   },
@@ -339,74 +335,74 @@ export const TEMPLATE_TRANSLATIONS = {
       court_header: "NO TRIBUNAL SUPERIOR DO ESTADO DE SAN ANDREAS\nNO E PARA O CONDADO DE LOS SANTOS",
       body: "<b>PROCESSO / DOCKET Nº:</b> {case_no}\n<b>INDICIADO / RÉU:</b> {defendant_name}\n<b>ÚLTIMO ENDEREÇO CONHECIDO:</b> {last_known_address}\n<b>STATUS DE FIANÇA RECOMENDADO:</b> {bail_request}\n\n<b>I. REPRESENTAÇÃO FORMAL DE PRISÃO</b>\nPerante o Tribunal Superior do Estado de San Andreas, comparece o oficial <b>{issuer_name}</b> ({issuer_rank}, Distintivo #{issuer_badge}), do Unified Police Department, o qual, prestando compromisso legal, declara sob pena da lei que no Condado de Los Santos o réu acima nominado praticou os crimes especificados nesta representação.\n\n<b>II. IMPUTAÇÕES E DISPOSITIVOS PENAIS</b>\n{charges}\n\n<b>III. DEMONSTRAÇÃO DE CAUSA PROVÁVEL E INDÍCIOS DE AUTORIA</b>\n{probable_cause}\n\n<b>IV. PEDIDO DE MANDADO DE PRISÃO</b>\nDiante do exposto, o Declarante requer a expedição de Mandado de Prisão autorizando qualquer Oficial de Paz a capturar e apresentar o réu perante o Magistrado competente.",
       fields: [
-        { key: "case_no", label: "Nº do Processo / Docket", type: "text", required: true, max_length: 60, placeholder: "26-CR-00419" },
-        { key: "defendant_name", label: "Nome Completo do Réu e Dados", type: "text", required: true, max_length: 250, placeholder: "Nome Completo · RG / ID · Data de Nascimento" },
-        { key: "last_known_address", label: "Último Endereço / Local Conhecido", type: "text", required: true, max_length: 250, placeholder: "Último endereço conhecido em Los Santos, SA" },
-        { key: "charges", label: "Imputações Penais (Artigos e Contagens)", type: "textarea", required: true, max_length: 800, placeholder: "Contagem 1: Artigo penal e tipificação" },
-        { key: "probable_cause", label: "Demonstração de Causa Provável", type: "textarea", required: true, max_length: 3500, placeholder: "Fatos demonstrando a materialidade delitiva e os indícios suficientes de autoria..." },
-        { key: "bail_request", label: "Recomendação de Fiança / Custódia", type: "text", required: true, max_length: 150, placeholder: "Prisão Preventiva / Sem Fiança — Risco à Ordem Pública" }
+        { key: "case_no", label: "Nº do Processo", type: "text", required: true, max_length: 60, placeholder: "26-CR-00419" },
+        { key: "defendant_name", label: "Nome do Réu", type: "text", required: true, max_length: 250, placeholder: "Nome completo e identificadores" },
+        { key: "last_known_address", label: "Último Endereço Conhecido", type: "text", required: true, max_length: 250, placeholder: "Endereço em Los Santos, SA" },
+        { key: "charges", label: "Imputações Penais", type: "textarea", required: true, max_length: 800, placeholder: "Tipificação dos delitos imputados" },
+        { key: "probable_cause", label: "Causa Provável", type: "textarea", required: true, max_length: 3500, placeholder: "Fatos demonstrando autoria e materialidade" },
+        { key: "bail_request", label: "Fiança / Custódia", type: "text", required: true, max_length: 150, placeholder: "Prisão preventiva / Sem fiança" }
       ]
     }
   },
   CO: {
     pt: {
-      name: "Quebra de Sigilo e Registros (18 U.S.C. § 2703(d))",
-      title: "REQUERIMENTO DE ORDEM JUDICIAL PARA QUEBRA DE SIGILO E REGISTROS\nNOS TERMOS DO 18 U.S.C. § 2703(d) E LEI DE PRIVACIDADE FINANCEIRA",
+      name: "Quebra de Sigilo (18 U.S.C. § 2703(d))",
+      title: "REQUERIMENTO DE ORDEM JUDICIAL PARA QUEBRA DE SIGILO E REGISTROS\nNOS TERMOS DO 18 U.S.C. § 2703(d)",
       court_header: "NO TRIBUNAL SUPERIOR DO ESTADO DE SAN ANDREAS\nNO E PARA O CONDADO DE LOS SANTOS",
       body: "<b>INQUÉRITO / REGISTRO Nº:</b> {case_no}\n<b>IDENTIFICADOR / TITULAR DO ALVO:</b> {target_account}\n<b>CUSTODIANTE DOS REGISTROS:</b> {custodian_entity}\n<b>PRAZO DE SIGILO E NÃO DIVULGAÇÃO:</b> {nondisclosure_period}\n\n<b>I. REQUERIMENTO LEGAL</b>\n<b>{issuer_name}</b> ({issuer_rank}, Distintivo #{issuer_badge}), investigador juramentado do Unified Police Department, requer a este Tribunal Superior a expedição de Ordem Judicial nos termos do 18 U.S.C. § 2703(d) determinando que <b>{custodian_entity}</b> forneça os dados especificados a seguir.\n\n<b>II. REGISTROS E DADOS REQUISITADOS</b>\n{records_scope}\n\n<b>III. FATOS ARTICULADOS E RELEVÂNCIA PROBATÓRIA</b>\n{articulable_facts}",
       fields: [
-        { key: "case_no", label: "Nº do Inquérito / Investigação", type: "text", required: true, max_length: 60, placeholder: "26-INV-00109" },
-        { key: "target_account", label: "Alvo e Conta / Telefone / Identificador", type: "text", required: true, max_length: 250, placeholder: "Número de conta / Linha telefônica e titular" },
-        { key: "custodian_entity", label: "Provedor do Serviço / Instituição Financeira", type: "text", required: true, max_length: 200, placeholder: "Instituição bancária ou operadora de telecomunicações" },
-        { key: "records_scope", label: "Escopo dos Dados e Período Requisitado", type: "textarea", required: true, max_length: 1200, placeholder: "Extratos, registros de chamadas, dados cadastrais e intervalo temporal..." },
-        { key: "articulable_facts", label: "Fatos Concretos e Articulados (Relevância Legal)", type: "textarea", required: true, max_length: 3500, placeholder: "Demonstração de fatos concretos evidenciando a imprescindibilidade dos registros..." },
-        { key: "nondisclosure_period", label: "Pedido de Sigilo e Não Divulgação", type: "text", required: true, max_length: 150, placeholder: "Sigilo Absoluto por 90 dias (18 U.S.C. § 2705(b))" }
+        { key: "case_no", label: "Nº do Inquérito", type: "text", required: true, max_length: 60, placeholder: "26-INV-00109" },
+        { key: "target_account", label: "Conta / Linha / Alvo", type: "text", required: true, max_length: 250, placeholder: "Identificador da conta ou linha" },
+        { key: "custodian_entity", label: "Provedor / Instituição", type: "text", required: true, max_length: 200, placeholder: "Entidade custodiante dos registros" },
+        { key: "records_scope", label: "Escopo dos Dados", type: "textarea", required: true, max_length: 1200, placeholder: "Registros requeridos e período temporal" },
+        { key: "articulable_facts", label: "Relevância Probatória", type: "textarea", required: true, max_length: 3500, placeholder: "Fatos demonstrando a necessidade dos dados" },
+        { key: "nondisclosure_period", label: "Ordem de Sigilo", type: "text", required: true, max_length: 150, placeholder: "Sigilo por 90 dias (18 U.S.C. § 2705(b))" }
       ]
     }
   },
   SO: {
     pt: {
-      name: "Operação de Pacificação Comunitária (SMEAC)",
-      title: "PEDIDO DE AUTORIZAÇÃO JUDICIAL E EXECUTIVA\nOPERAÇÃO ESPECIAL TÁTICA E PACIFICAÇÃO COMUNITÁRIA (SMEAC)",
+      name: "Operação Tática Especial (SMEAC)",
+      title: "PEDIDO DE AUTORIZAÇÃO JUDICIAL E EXECUTIVA\nOPERAÇÃO ESPECIAL TÁTICA E PACIFICAÇÃO (SMEAC)",
       court_header: "PERANTE O DEPARTAMENTO DE JUSTIÇA E TRIBUNAL SUPERIOR\nESTADO DE SAN ANDREAS · CONDADO DE LOS SANTOS",
       body: "<b>DESIGNAÇÃO DA OPERAÇÃO:</b> {operation_name}\n<b>JANELA OPERACIONAL:</b> {operational_window}\n<b>OFICIAL DE COMANDO RESPONSÁVEL:</b> {issuer_name} ({issuer_rank}, Distintivo #{issuer_badge})\n\n<b>I. SITUAÇÃO E INTELIGÊNCIA OPERACIONAL</b>\n{situation}\n\n<b>II. DECLARAÇÃO DE MISSÃO</b>\n{mission}\n\n<b>III. PLANO DE EXECUÇÃO E FASES TÁTICAS</b>\n{execution}\n\n<b>IV. REGRAS DE ENGAJAMENTO E SALVAGUARDAS CONSTITUCIONAIS</b>\n{roe_safeguards}",
       fields: [
-        { key: "operation_name", label: "Codinome da Operação e Zona Designada", type: "text", required: true, max_length: 200, placeholder: "Codinome da operação e setor geográfico" },
-        { key: "operational_window", label: "Janela Operacional (Início e Fim / Horários)", type: "text", required: true, max_length: 150, placeholder: "Data e horário de início e encerramento previsto" },
-        { key: "situation", label: "1. SITUAÇÃO (Inteligência e Ameaça Armada)", type: "textarea", required: true, max_length: 1500, placeholder: "Inteligência sobre facções, atuação armada e crimes violentos no setor..." },
-        { key: "mission", label: "2. MISSÃO OPERACIONAL", type: "textarea", required: true, max_length: 800, placeholder: "Objetivos táticos e metas de estabilização comunitária..." },
-        { key: "execution", label: "3. EXECUÇÃO E FASES TÁTICAS (Unidades e Perímetros)", type: "textarea", required: true, max_length: 1500, placeholder: "Fases da operação, unidades empenhadas e pontos de bloqueio..." },
-        { key: "roe_safeguards", label: "4. REGRAS DE ENGAJAMENTO E SALVAGUARDAS", type: "textarea", required: true, max_length: 1000, placeholder: "Uso progressivo da força, câmeras operacionais e suporte médico..." }
+        { key: "operation_name", label: "Codinome da Operação", type: "text", required: true, max_length: 200, placeholder: "Designação e setor de atuação" },
+        { key: "operational_window", label: "Janela Operacional", type: "text", required: true, max_length: 150, placeholder: "Início e término previstos" },
+        { key: "situation", label: "Situação e Inteligência", type: "textarea", required: true, max_length: 1500, placeholder: "Relatório de ameaça armada e inteligência" },
+        { key: "mission", label: "Missão", type: "textarea", required: true, max_length: 800, placeholder: "Objetivos táticos da operação" },
+        { key: "execution", label: "Execução e Perímetros", type: "textarea", required: true, max_length: 1500, placeholder: "Fases, unidades e pontos de cerco" },
+        { key: "roe_safeguards", label: "Regras de Engajamento", type: "textarea", required: true, max_length: 1000, placeholder: "Diretrizes de uso progressivo da força" }
       ]
     }
   },
   FQ: {
     pt: {
-      name: "Certificado e Porte de Armas de Fogo UPD",
+      name: "Certificado de Armamento UPD",
       title: "CERTIFICADO DE QUALIFICAÇÃO EM ARMAS DE FOGO\nE AUTORIZAÇÃO DE CUSTÓDIA DE ARMAMENTO DEPARTAMENTAL",
       court_header: "UNIFIED POLICE DEPARTMENT · DIVISÃO DE TIRO E TREINAMENTO COM ARMAS\nCERTIFICAÇÃO OFICIAL POST DO ESTADO DE SAN ANDREAS",
       body: "<b>INDIVÍDUO AUTORIZADO:</b> {holder_name} (Documento ID: {holder_id})\n<b>Nº DO PROCESSO / REGISTRO DOJ:</b> {doj_permit_ref}\n<b>INSTRUTOR RESPONSÁVEL:</b> {issuer_name} ({issuer_rank}, Distintivo #{issuer_badge})\n\n<b>I. ATESTADO DE APTIDÃO EM TIRO</b>\nEm conformidade com a autorização do Departamento de Justiça (<b>{doj_permit_ref}</b>), a Divisão de Tiro do Unified Police Department certifica que <b>{holder_name}</b> concluiu satisfatoriamente a instrução e avaliação prática de tiro:\n\n<b>Resultado da Qualificação:</b> {course_score}\n\n<b>II. TERMO DE CUSTÓDIA E POSSE DE ARMAMENTO DO UPD</b>\nO armamento abaixo identificado permanece, a todo momento, como patrimônio exclusivo do <b>Unified Police Department (UPD)</b>:\n\n<b>Armamento Designado:</b> {weapon_details}\n\n<b>Condições de Custódia e Uso:</b>\n{conditions}",
       fields: [
-        { key: "holder_name", label: "Nome Completo do Cidadão / Agente", type: "text", required: true, max_length: 150, placeholder: "Nome Completo" },
-        { key: "holder_id", label: "Documento ID Estadual / RG / Passaporte", type: "text", required: true, max_length: 60, placeholder: "SA-ID #00000" },
-        { key: "doj_permit_ref", label: "Porte DOJ / Nº do Protocolo", type: "text", required: true, max_length: 100, placeholder: "DOJ-CCW-2026-0001" },
-        { key: "course_score", label: "Curso de Tiro e Aproveitamento", type: "text", required: true, max_length: 150, placeholder: "Curso de Combate e Tiro Defensivo — Nota: 98/100 (QUALIFICADO)" },
-        { key: "weapon_details", label: "Armamento Designado (Marca, Modelo, Calibre e Nº Série)", type: "text", required: true, max_length: 250, placeholder: "Glock 17 Gen 5 · 9x19mm · Nº de Série UPD-ARM-0001" },
-        { key: "conditions", label: "Termos de Custódia e Restrições de Uso", type: "textarea", required: true, max_length: 800, placeholder: "Armamento de propriedade exclusiva da UPD. Portador certificado em manuseio seguro, retenção e uso proporcional da força." }
+        { key: "holder_name", label: "Nome do Titular", type: "text", required: true, max_length: 150, placeholder: "Nome completo do agente ou cidadão" },
+        { key: "holder_id", label: "Documento ID", type: "text", required: true, max_length: 60, placeholder: "SA-ID 00000" },
+        { key: "doj_permit_ref", label: "Protocolo DOJ", type: "text", required: true, max_length: 100, placeholder: "DOJ-CCW-2026-0001" },
+        { key: "course_score", label: "Avaliação do Curso", type: "text", required: true, max_length: 150, placeholder: "Aprovado - 98/100" },
+        { key: "weapon_details", label: "Armamento Designado", type: "text", required: true, max_length: 250, placeholder: "Glock 17 Gen 5 - Calibre 9mm - Série UPD-ARM-0001" },
+        { key: "conditions", label: "Termos de Custódia", type: "textarea", required: true, max_length: 800, placeholder: "Patrimônio exclusivo UPD. Porte restrito a serviço autorizado." }
       ]
     }
   },
   CM: {
     pt: {
-      name: "Elogio e Condecoração Policial",
+      name: "Condecoração Departamental",
       title: "CONDECORAÇÃO E ELOGIO DEPARTAMENTAL OFICIAL\nGABINETE DO CHEFE DE POLÍCIA",
       court_header: "UNIFIED POLICE DEPARTMENT · CONSELHO DE HONRARIAS E CONDECORAÇÕES\nCONDADO DE LOS SANTOS, ESTADO DE SAN ANDREAS",
       body: "<b>PARA:</b> {recipient_name}\n<b>HONRARIA / CONDECORAÇÃO:</b> {award_class}\n<b>DATA E LOCAL DO ATO:</b> {incident_date}\n<b>SUPERVISOR PROPORENTE:</b> {issuer_name} ({issuer_rank}, Distintivo #{issuer_badge})\n\n<b>CITAÇÃO POR SERVIÇO RELEVANTE E CORAGEM</b>\nO Comando do Unified Police Department confere o presente Elogio Departamental Oficial a <b>{recipient_name}</b> em reconhecimento ao exemplar profissionalismo, distinção e bravura em cumprimento do dever policial:\n\n{citation_narrative}",
       fields: [
-        { key: "recipient_name", label: "Oficial Homenageado (Nome e Distintivo)", type: "text", required: true, max_length: 150, placeholder: "Oficial Nome e Distintivo #" },
-        { key: "award_class", label: "Classe da Condecoração / Honraria", type: "text", required: true, max_length: 120, placeholder: "Medalha de Bravura / Citação de Honra ao Mérito" },
-        { key: "incident_date", label: "Data e Local do Ato Meritório", type: "text", required: true, max_length: 150, placeholder: "Data e localização do ato" },
-        { key: "citation_narrative", label: "Narrativa dos Fatos e Justificativa do Elogio", type: "textarea", required: true, max_length: 2500, placeholder: "Narrativa pormenorizada dos fatos e bravura..." }
+        { key: "recipient_name", label: "Oficial Homenageado", type: "text", required: true, max_length: 150, placeholder: "Nome e distintivo do oficial" },
+        { key: "award_class", label: "Classe da Condecoração", type: "text", required: true, max_length: 120, placeholder: "Medalha de Bravura / Honra ao Mérito" },
+        { key: "incident_date", label: "Data e Local do Fato", type: "text", required: true, max_length: 150, placeholder: "Data e local da ocorrência" },
+        { key: "citation_narrative", label: "Justificativa da Condecoração", type: "textarea", required: true, max_length: 2500, placeholder: "Narrativa dos atos de bravura e mérito" }
       ]
     }
   }
@@ -422,6 +418,42 @@ export function getLanguage() {
 export function setLanguage(lang) {
   _currentLang = lang === "en" ? "en" : "pt";
   localStorage.setItem("upd_site_lang", _currentLang);
+}
+
+/**
+ * Single global language switcher (fixed top-left, 🇧🇷 / 🇺🇸).
+ * Created once per page; `onChange(lang)` runs after the language is saved.
+ */
+export function mountLangSwitch(onChange) {
+  let el = document.getElementById("lang-switch");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "lang-switch";
+    el.className = "lang-switch no-print";
+    el.setAttribute("role", "group");
+    el.setAttribute("aria-label", "Idioma / Language");
+    el.innerHTML = `
+      <button type="button" data-lang="pt" title="Português (Brasil)"><span class="flag">🇧🇷</span></button>
+      <button type="button" data-lang="en" title="English (US)"><span class="flag">🇺🇸</span></button>
+    `;
+    document.body.prepend(el);
+  }
+  const sync = () => {
+    el.querySelectorAll("[data-lang]").forEach(b => {
+      const on = b.dataset.lang === _currentLang;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", String(on));
+    });
+  };
+  el.onclick = e => {
+    const btn = e.target.closest("[data-lang]");
+    if (!btn || btn.dataset.lang === _currentLang) return;
+    setLanguage(btn.dataset.lang);
+    sync();
+    onChange?.(_currentLang);
+  };
+  sync();
+  return sync;
 }
 
 export function getDocumentLanguage() {

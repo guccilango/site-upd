@@ -190,7 +190,7 @@ function loadLocalStore() {
         id: 1,
         discord_id: _INTERNAL.ownerId,
         rp_name: "Gucci Lango",
-        badge: "01",
+        badge: "101",
         division: "Office of the Chief of Police",
         status: "active",
         rank_id: 14,
@@ -778,7 +778,7 @@ export async function renderDocumentSheetCanvas(doc) {
 
   ctx.fillStyle = "#141619";
   ctx.font = "400 15px 'Newsreader', Georgia, serif";
-  ctx.fillText(`${doc.issuer_rank || "Officer"} · Badge #${doc.issuer_badge || "01"}`, leftCenterX, sigTop + 140);
+  ctx.fillText(`${doc.issuer_rank || "Officer"} · Badge #${doc.issuer_badge || "101"}`, leftCenterX, sigTop + 140);
   ctx.fillText("Unified Police Department", leftCenterX, sigTop + 162);
 
   // Center Column: Official Seal
@@ -1072,31 +1072,31 @@ export async function postApprovedDocumentToDiscord(doc) {
       {
         name: isPt ? "Autenticidade Pública" : "Public Verification",
         value: isPt
-          ? `[🔍 Verificar Registro Oficial](${verifyUrl})`
-          : `[🔍 Verify Official Record](${verifyUrl})`,
+          ? `[Verificar Registro Oficial](${verifyUrl})`
+          : `[Verify Official Record](${verifyUrl})`,
         inline: true
       }
     ];
 
     if (fmUrl) {
       fields.push({
-        name: isPt ? "🖼️ Link da Imagem (Fivemanage)" : "🖼️ Image Link (Fivemanage)",
-        value: `\`${fmUrl}\`\n[🔗 ${isPt ? "Abrir Imagem no Fivemanage" : "Open Image on Fivemanage"}](${fmUrl})`,
+        name: isPt ? "Link da Imagem (Fivemanage)" : "Image Link (Fivemanage)",
+        value: `\`${fmUrl}\`\n[${isPt ? "Abrir Imagem no Fivemanage" : "Open Image on Fivemanage"}](${fmUrl})`,
         inline: false
       });
     }
 
     const embed = {
-      title: `📜 ${ctrl} — [${doc.template_code}] ${resolvedTpl.name || doc.template_name}`,
+      title: `${ctrl} - [${doc.template_code}] ${resolvedTpl.name || doc.template_name}`,
       url: verifyUrl,
       color: 0x145a32,
       description: isPt
-        ? `Documento oficial emitido, autenticado e contra-assinado no **Portal de Comando e Registros da Unified Police Department**.`
-        : `Official record issued, authenticated, and counter-signed in the **Unified Police Department Command & Records Portal**.`,
+        ? `Documento oficial emitido e registrado no **Portal de Documentos da Unified Police Department**.`
+        : `Official record issued and registered in the **Unified Police Department Records Portal**.`,
       fields,
       image: { url: fmUrl || `attachment://${filename}` },
       footer: {
-        text: "Unified Police Department · Records & Judicial Filing Bureau"
+        text: "Unified Police Department · Records Bureau"
       },
       timestamp: doc.approved_at || new Date().toISOString()
     };
@@ -1105,7 +1105,7 @@ export async function postApprovedDocumentToDiscord(doc) {
     formData.append(
       "payload_json",
       JSON.stringify({
-        username: "Unified Police Department — Official Records",
+        username: "Unified Police Department - Official Records",
         embeds: [embed]
       })
     );
@@ -1196,7 +1196,7 @@ export function loginOwnerDirect(discordId, accessKey, rpName, badge) {
       id: 1,
       discord_id: _INTERNAL.ownerId,
       rp_name: (rpName || "Gucci Lango").trim(),
-      badge: (badge || "01").trim(),
+      badge: (badge || "101").trim(),
       division: "Office of the Chief of Police",
       status: "active",
       rank_id: 14,
@@ -1327,7 +1327,7 @@ export async function handleDiscordOAuthCallbackIfPresent() {
       id: nextId,
       discord_id: discordId,
       rp_name: nick,
-      badge: isOwner ? "01" : String(100 + nextId),
+      badge: isOwner ? "101" : String(100 + nextId),
       division: isOwner ? "Office of the Chief of Police" : "Command Supervision",
       status: "active",
       rank_id: topRank.id,

@@ -34,7 +34,7 @@ export function getSiteVerifyUrl(ctrl) {
 export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
   const officer = docMeta.issuer || getCurrentOfficer() || {
     rp_name: "Command Officer",
-    badge: "01",
+    badge: "101",
     rank_name: "Commander"
   };
   const status = docMeta.status || "PENDING";
@@ -67,7 +67,7 @@ export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
       `
       : `
         <div class="sheet-sig-role">${esc(chrome.sigApproverRole)}</div>
-        <div style="height:28px;display:flex;align-items:center;justify-content:center;font-family:var(--font);font-size:10px;font-weight:700;color:#9e1b1b;">
+        <div style="height:28px;display:flex;align-items:center;justify-content:center;font-family:var(--font);font-size:11px;font-weight:700;color:#9e1b1b;">
           ${esc(chrome.sigAwaiting)}
         </div>
         <div class="sheet-sig-line"></div>
@@ -79,7 +79,7 @@ export function buildLiveSheetHtml(template, fieldValues, docMeta = {}) {
   const verifyLabel = docLang === "pt" ? "VERIFICAR NO REGISTRO:" : "VERIFY REGISTRY:";
 
   return `
-    <div class="us-letter-sheet" data-ui="us-letter-preview">
+    <div class="us-letter-sheet">
       <div class="us-letter-inner">
         <img class="sheet-watermark" src="./assets/opacidade2.png" alt="UPD Watermark" />
         ${status !== "APPROVED" ? `<div class="sheet-draft-stamp">${status === "PENDING" ? esc(chrome.stampDraft) : esc(status)}</div>` : ""}

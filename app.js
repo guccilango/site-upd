@@ -39,17 +39,17 @@ function copyTextWithFeedback(text, btnEl) {
   const doFeedback = () => {
     if (!btnEl) return;
     const orig = btnEl.innerHTML;
-    btnEl.innerHTML = "✅ Copiado!";
+    btnEl.innerHTML = "Copiado";
     setTimeout(() => {
       btnEl.innerHTML = orig;
     }, 1800);
   };
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(doFeedback).catch(() => {
-      window.prompt("Copie o link do Fivemanage:", text);
+      window.prompt("Copie o link:", text);
     });
   } else {
-    window.prompt("Copie o link do Fivemanage:", text);
+    window.prompt("Copie o link:", text);
   }
 }
 
@@ -70,7 +70,7 @@ let authErrorMessage = "";
 
 function maskId(id) {
   const s = String(id || "");
-  if (!s) return "—";
+  if (!s) return "-";
   return s.length > 4 ? `••••${s.slice(-4)}` : "••••";
 }
 
@@ -89,8 +89,8 @@ function renderLoginScreen() {
             <div class="brand-sub">${esc(t("restrictedPortal"))}</div>
           </div>
         </div>
-        <button class="btn btn-ghost btn-lang-toggle" type="button" style="padding:4px 8px;font-size:13px;font-weight:700;" title="Alternar Idioma / Switch Language">
-          ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+        <button class="btn btn-ghost btn-lang-toggle" type="button" style="padding:4px 8px;font-size:12px;font-weight:600;" title="Alternar Idioma">
+          ${lang === 'pt' ? 'PT' : 'EN'}
         </button>
       </div>
       <div class="nav-group">
@@ -121,8 +121,8 @@ function renderLoginScreen() {
         <p class="page-sub">${esc(t("loginSub"))}</p>
       </div>
       <div class="header-actions" style="display:flex;gap:8px;align-items:center;">
-        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:700;">
-          ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:600;">
+          ${lang === 'pt' ? 'PT' : 'EN'}
         </button>
         <a class="btn btn-secondary" href="./verify.html">${esc(t("publicVerifier"))}</a>
       </div>
@@ -130,25 +130,149 @@ function renderLoginScreen() {
 
     ${
       authErrorMessage
-        ? `<div class="notice-bar" style="background:var(--pill-negative-bg);color:var(--pill-negative-ink);border-color:#f8c6c0;">
+        ? `<div class="notice-bar" style="background:var(--pill-negative-bg);color:var(--pill-negative-ink);margin-bottom:20px;padding:10px 14px;border-radius:var(--radius-control);">
              <span>${esc(authErrorMessage)}</span>
            </div>`
         : ""
     }
 
-    <div style="max-width:500px;margin:36px auto 0;">
-      <section class="panel" style="padding:28px 24px;text-align:center;">
-        <img src="./assets/opacidade2.png" alt="UPD Crest" style="width:68px;height:68px;margin:0 auto 14px;" />
-        <h2 class="panel-title" style="font-size:18px;margin-bottom:6px;">${esc(t("loginAuthTitle"))}</h2>
-        <div class="panel-sub" style="margin-bottom:16px;">${esc(t("loginAuthSub"))}</div>
-        <p style="margin:0 auto 22px;color:var(--muted);font-size:13.5px;line-height:1.55;max-width:420px;">
+    <div class="grid-asymmetric">
+      <section class="panel">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+          <img src="./assets/opacidade2.png" alt="UPD Crest" style="width:52px;height:52px;object-fit:contain;" />
+          <div>
+            <h2 class="panel-title" style="font-size:17px;margin:0 0 4px;">${esc(t("loginAuthTitle"))}</h2>
+            <div class="panel-sub" style="margin:0;">${esc(t("loginAuthSub"))}</div>
+          </div>
+        </div>
+
+        <p style="margin:0 0 24px;color:var(--muted);font-size:13.5px;line-height:1.5;">
           ${esc(t("loginAuthDesc"))}
         </p>
-        <a class="btn btn-primary" href="${esc(getDiscordOAuthUrl())}" style="width:100%;justify-content:center;height:42px;font-size:14px;font-weight:600;">
+
+        <a class="btn btn-primary" href="${esc(getDiscordOAuthUrl())}" style="width:100%;justify-content:center;height:38px;font-size:13.5px;font-weight:600;">
           ${esc(t("btnDiscordLogin"))}
         </a>
+
+        <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);">
+          <button class="btn btn-secondary" id="btn-toggle-recovery" type="button" style="width:100%;justify-content:center;">
+            ${esc(t("recoveryLoginBtn"))}
+          </button>
+          <div id="recovery-form-box" style="display:none;margin-top:16px;">
+            <form id="recovery-form" style="display:flex;flex-direction:column;gap:12px;">
+              <div class="field-group">
+                <label class="field-label">${esc(t("recoveryCredLabel"))}</label>
+                <input class="input mono" name="discord_id" placeholder="${esc(t("recoveryCredPlaceholder"))}" required />
+              </div>
+              <div class="field-group">
+                <label class="field-label">${esc(t("recoverySigLabel"))}</label>
+                <input class="input" name="rp_name" placeholder="Ex: John Miller" required />
+              </div>
+              <div class="field-group">
+                <label class="field-label">${esc(t("recoveryBadgeLabel"))}</label>
+                <input class="input mono" name="badge" placeholder="101" required />
+              </div>
+              <div class="field-group">
+                <label class="field-label">${esc(t("recoveryKeyLabel"))}</label>
+                <input class="input mono" type="password" name="key" placeholder="${esc(t("recoveryKeyPlaceholder"))}" required />
+              </div>
+              <button class="btn btn-primary" type="submit" style="width:100%;justify-content:center;height:36px;">
+                ${esc(t("recoverySubmitBtn"))}
+              </button>
+            </form>
+          </div>
+        </div>
       </section>
+
+      <aside class="panel">
+        <div class="panel-header" style="margin-bottom:14px;">
+          <div>
+            <h2 class="panel-title">${esc(t("publicVerifier"))}</h2>
+            <div class="panel-sub">${esc(t("qrSub"))}</div>
+          </div>
+        </div>
+
+        <p style="margin:0 0 16px;color:var(--muted);font-size:13px;line-height:1.5;">
+          ${lang === "pt"
+            ? "A verificação pública autentica a validade de mandados e certidões emitidos pelo bureau através do número de controle oficial."
+            : "Public verification validates warrants and certificates issued by the bureau using the official control number."}
+        </p>
+
+        <form action="./verify.html" method="GET" style="display:flex;gap:8px;margin-bottom:20px;">
+          <input
+            class="input mono"
+            name="n"
+            placeholder="${esc(t("qrPlaceholder"))}"
+            style="flex:1;"
+            required
+          />
+          <button class="btn btn-secondary" type="submit">${esc(t("btnVerify"))}</button>
+        </form>
+
+        <div style="border-top:1px solid var(--border);padding-top:16px;">
+          <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;">
+            ${lang === "pt" ? "Séries de Documentos" : "Document Series"}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);">
+            <div><strong>DOJ</strong> · SW, AW, CO, SO (${lang === "pt" ? "Processos Judiciais" : "Judicial Filings"})</div>
+            <div><strong>UPD</strong> · FQ, CM (${lang === "pt" ? "Registros Internos" : "Internal Records"})</div>
+          </div>
+        </div>
+      </aside>
     </div>
+
+    <section class="panel" style="margin-top:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h2 class="panel-title" style="font-size:14px;font-weight:600;margin:0;">
+          ${lang === "pt" ? "Modelos Oficiais Registrados" : "Official Registered Templates"}
+        </h2>
+        <span class="mono" style="font-size:12px;color:var(--muted);">Los Santos · DOJ & UPD</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:10px;">
+        <div style="padding:10px 12px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-control);">
+          <div style="font-weight:600;font-size:13px;display:flex;justify-content:space-between;">
+            <span>[SW] ${lang === "pt" ? "Mandado de Busca" : "Search Warrant"}</span>
+            <span class="mono" style="font-size:11px;color:var(--muted);">DOJ</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Commander+ (Lvl 11)</div>
+        </div>
+        <div style="padding:10px 12px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-control);">
+          <div style="font-weight:600;font-size:13px;display:flex;justify-content:space-between;">
+            <span>[AW] ${lang === "pt" ? "Mandado de Prisão" : "Arrest Warrant"}</span>
+            <span class="mono" style="font-size:11px;color:var(--muted);">DOJ</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Commander+ (Lvl 11)</div>
+        </div>
+        <div style="padding:10px 12px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-control);">
+          <div style="font-weight:600;font-size:13px;display:flex;justify-content:space-between;">
+            <span>[CO] ${lang === "pt" ? "Quebra de Sigilo (2703(d))" : "Court Order (2703(d))"}</span>
+            <span class="mono" style="font-size:11px;color:var(--muted);">DOJ</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Commander+ (Lvl 11)</div>
+        </div>
+        <div style="padding:10px 12px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-control);">
+          <div style="font-weight:600;font-size:13px;display:flex;justify-content:space-between;">
+            <span>[SO] ${lang === "pt" ? "Operação Tática (SMEAC)" : "Tactical Operation (SMEAC)"}</span>
+            <span class="mono" style="font-size:11px;color:var(--muted);">DOJ</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Commander+ (Lvl 11)</div>
+        </div>
+        <div style="padding:10px 12px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-control);">
+          <div style="font-weight:600;font-size:13px;display:flex;justify-content:space-between;">
+            <span>[FQ] ${lang === "pt" ? "Certificado de Armamento" : "Firearms Qualification"}</span>
+            <span class="mono" style="font-size:11px;color:var(--muted);">UPD</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Corporal+ (Lvl 5)</div>
+        </div>
+        <div style="padding:10px 12px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-control);">
+          <div style="font-weight:600;font-size:13px;display:flex;justify-content:space-between;">
+            <span>[CM] ${lang === "pt" ? "Condecoração Oficial" : "Commendation"}</span>
+            <span class="mono" style="font-size:11px;color:var(--muted);">UPD</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Corporal+ (Lvl 5)</div>
+        </div>
+      </div>
+    </section>
   `;
 
   document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
@@ -157,6 +281,30 @@ function renderLoginScreen() {
       renderApp();
     });
   });
+
+  const recBtn = document.getElementById("btn-toggle-recovery");
+  const recBox = document.getElementById("recovery-form-box");
+  if (recBtn && recBox) {
+    recBtn.addEventListener("click", () => {
+      const isHidden = recBox.style.display === "none";
+      recBox.style.display = isHidden ? "block" : "none";
+      recBtn.textContent = isHidden ? esc(t("hideRecoveryBtn")) : esc(t("recoveryLoginBtn"));
+    });
+  }
+
+  const recForm = document.getElementById("recovery-form");
+  if (recForm) {
+    recForm.addEventListener("submit", e => {
+      e.preventDefault();
+      const fd = new FormData(recForm);
+      try {
+        loginOwnerDirect(fd.get("discord_id"), fd.get("key"), fd.get("rp_name"), fd.get("badge"));
+        renderApp();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  }
 }
 
 // ─── Authenticated Sidebar & Views ────────────────────────────────────────────
@@ -181,8 +329,8 @@ function renderSidebar() {
             <div class="brand-sub">${esc(t("brandSub"))}</div>
           </div>
         </div>
-        <button class="btn btn-ghost btn-lang-toggle" type="button" style="padding:4px 8px;font-size:13px;font-weight:700;" title="Alternar Idioma / Switch Language">
-          ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+        <button class="btn btn-ghost btn-lang-toggle" type="button" style="padding:4px 8px;font-size:12px;font-weight:600;" title="Alternar Idioma">
+          ${lang === 'pt' ? 'PT' : 'EN'}
         </button>
       </div>
 
@@ -227,7 +375,7 @@ function renderSidebar() {
                 <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 <span>${esc(t("navOfficers"))}</span>
               </span>
-              <span class="nav-count">${pendingOfficers > 0 ? `${pendingOfficers} pending` : store.officers.length}</span>
+              <span class="nav-count">${pendingOfficers > 0 ? `${pendingOfficers} pendentes` : store.officers.length}</span>
             </button>
           </li>
           <li>
@@ -266,8 +414,8 @@ function renderSidebar() {
           <span class="officer-name">${esc(officer.rp_name)}</span>
           <span class="mono" style="font-size:12px;color:var(--muted);">#${esc(officer.badge)}</span>
         </div>
-        <div class="officer-rank">${esc(officer.rank_name)} · Lvl ${officer.rank_level}${officer.is_admin ? " · Admin" : ""}</div>
-        <div class="officer-sig-preview" title="Auto-generated cursive signature">${esc(officer.rp_name)}</div>
+        <div class="officer-rank">${esc(officer.rank_name)} · Nível ${officer.rank_level}${officer.is_admin ? " · Admin" : ""}</div>
+        <div class="officer-sig-preview">${esc(officer.rp_name)}</div>
       </div>
       <button class="btn btn-secondary" id="btn-logout" type="button" style="justify-content:center;">
         ${esc(t("signOut"))}
@@ -316,12 +464,12 @@ function renderOverview(container) {
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">${esc(t("brandTitle"))} — ${esc(t("ledgerTitle"))}</h1>
-        <p class="page-sub">Unified Police Department · ${esc(t("composerSub"))}</p>
+        <h1 class="page-title">${esc(t("brandTitle"))} · ${esc(t("ledgerTitle"))}</h1>
+        <p class="page-sub">Unified Police Department · Los Santos</p>
       </div>
       <div class="header-actions" style="display:flex;align-items:center;gap:8px;">
-        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:700;">
-          ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:600;">
+          ${lang === 'pt' ? 'PT' : 'EN'}
         </button>
         <a class="btn btn-secondary" href="./verify.html">${esc(t("verifyControlNo"))}</a>
         <button class="btn btn-primary" id="btn-new-filing">${esc(t("newDocument"))}</button>
@@ -332,22 +480,18 @@ function renderOverview(container) {
       <div class="kpi-cell">
         <div class="kpi-label">${esc(t("kpiPendingLabel"))}</div>
         <div class="kpi-value accent-data">${pendingDocs.length}</div>
-        <div class="kpi-caption">${esc(t("kpiPendingCap"))}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">${esc(t("kpiDojLabel"))}</div>
         <div class="kpi-value">${approvedDoj.length}</div>
-        <div class="kpi-caption">${esc(t("kpiDojCap"))}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">${esc(t("kpiInternalLabel"))}</div>
         <div class="kpi-value">${approvedInternal.length}</div>
-        <div class="kpi-caption">${esc(t("kpiInternalCap"))}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">${esc(t("kpiOfficersLabel"))}</div>
-        <div class="kpi-value">${activeOfficers.length} <span style="font-size:14px;color:var(--muted);font-weight:400;">/ ${store.officers.length}</span></div>
-        <div class="kpi-caption">${esc(t("kpiOfficersCap", { total: store.officers.length }))}</div>
+        <div class="kpi-value">${activeOfficers.length} <span style="font-size:13px;color:var(--muted);font-weight:400;">/ ${store.officers.length}</span></div>
       </div>
     </section>
 
@@ -369,7 +513,7 @@ function renderOverview(container) {
         ${
           filteredDocs.length === 0
             ? `<div style="border:1px dashed var(--control);border-radius:var(--radius-card);padding:18px;color:var(--muted);font-size:13px;">
-                 Nenhum documento emitido neste filtro.
+                 Nenhum documento encontrado neste filtro.
                </div>`
             : `
               <div class="table-wrap">
@@ -391,9 +535,7 @@ function renderOverview(container) {
                           store.templates.find(tplItem => tplItem.code === d.template_code) || { code: d.template_code, name: d.template_name },
                           d.lang || "pt"
                         );
-                        const docLangBadge = (d.lang || "pt") === "en"
-                          ? '<span class="pill pill-pending" style="font-size:10px;padding:2px 6px;margin-left:6px;" title="English Document">🇺🇸 EN</span>'
-                          : '<span class="pill pill-approved" style="font-size:10px;padding:2px 6px;margin-left:6px;" title="Documento em Português">🇧🇷 PT</span>';
+                        const docLangBadge = `<span class="pill pill-neutral" style="font-size:10px;padding:2px 6px;margin-left:6px;">${(d.lang || "pt").toUpperCase()}</span>`;
                         return `
                           <tr>
                             <td class="mono" style="font-weight:500;">
@@ -405,16 +547,16 @@ function renderOverview(container) {
                                 ${docLangBadge}
                               </div>
                               <div style="font-size:12px;color:var(--muted);">
-                                ${d.category === "doj" ? "DOJ Judicial Filing (Commander+)" : "Internal Record (Corporal+)"} · ${esc(d.created_at.slice(0, 10))}
+                                ${d.category === "doj" ? "DOJ (Commander+)" : "Interno (Corporal+)"} · ${esc(d.created_at.slice(0, 10))}
                               </div>
                             </td>
                             <td>
                               <div>${esc(d.issuer_rank)} ${esc(d.issuer_name)}</div>
-                              <div class="mono" style="font-size:12px;color:var(--muted);">Badge #${esc(d.issuer_badge)}</div>
+                              <div class="mono" style="font-size:12px;color:var(--muted);">Distintivo #${esc(d.issuer_badge)}</div>
                             </td>
                             <td>
                               ${statusPill(d.status)}
-                              ${d.approver_name ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">Signed: ${esc(d.approver_rank)} ${esc(d.approver_name)}</div>` : ""}
+                              ${d.approver_name ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">Assinado: ${esc(d.approver_rank)} ${esc(d.approver_name)}</div>` : ""}
                             </td>
                             <td class="num">
                               <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;align-items:center;">
@@ -422,22 +564,22 @@ function renderOverview(container) {
                                   d.png_url
                                     ? `
                                       <button type="button" class="btn btn-secondary" data-copy-fm="${esc(d.png_url)}" title="${esc(d.png_url)}">
-                                        📋 ${lang === "pt" ? "Copiar Link" : "Copy Link"}
+                                        ${lang === "pt" ? "Copiar Link" : "Copy Link"}
                                       </button>
                                       <a class="btn btn-secondary" href="${esc(d.png_url)}" target="_blank" rel="noopener" title="${esc(d.png_url)}">
-                                        🖼️ Fivemanage
+                                        Fivemanage
                                       </a>
                                     `
                                     : d.status === "APPROVED"
                                       ? `
                                         <button type="button" class="btn btn-secondary" data-gen-fm="${d.id}">
-                                          ⏳ Fivemanage
+                                          Fivemanage
                                         </button>
                                       `
                                       : ""
                                 }
                                 <button type="button" class="btn btn-secondary" data-inspect="${d.id}">${esc(t("btnViewDoc"))}</button>
-                                ${canApp ? `<button type="button" class="btn btn-primary" data-quick-approve="${d.id}">✅ ${esc(t("btnApprove"))}</button>` : ""}
+                                ${canApp ? `<button type="button" class="btn btn-primary" data-quick-approve="${d.id}">${esc(t("btnApprove"))}</button>` : ""}
                               </div>
                             </td>
                           </tr>
@@ -455,7 +597,7 @@ function renderOverview(container) {
         <div class="panel-header">
           <div>
             <h2 class="panel-title">${esc(t("navTemplates"))}</h2>
-            <div class="panel-sub">${esc(t("composerSub"))}</div>
+            <div class="panel-sub">${esc(t("templatesSub"))}</div>
           </div>
         </div>
 
@@ -480,7 +622,7 @@ function renderOverview(container) {
                       <td>
                         <div style="font-weight:500;">${esc(tplResolved.name)}</div>
                         <div style="font-size:12px;color:var(--muted);">
-                          ${tplItem.category === "doj" ? "DOJ · Approver: Commander+" : "Internal · Approver: Corporal+"}
+                          ${tplItem.category === "doj" ? "DOJ · Assinatura: Commander+" : "Interno · Assinatura: Corporal+"}
                         </div>
                       </td>
                       <td class="num">
@@ -550,7 +692,7 @@ function renderOverview(container) {
     const id = Number(btn.getAttribute("data-gen-fm"));
     ensureDocumentFivemanageUrl(id);
     btn.addEventListener("click", () => {
-      btn.textContent = "⏳ Enviando...";
+      btn.textContent = lang === "pt" ? "Enviando..." : "Uploading...";
       ensureDocumentFivemanageUrl(id);
     });
   });
@@ -578,18 +720,18 @@ function renderInspectModal(container) {
     <section class="panel inspect-sheet-panel" style="margin-top:8px;">
       <div class="panel-header no-print" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
         <div>
-          <h2 class="panel-title">Official Sheet Inspection — ${esc(doc.control_no || `Draft #${doc.id}`)}</h2>
+          <h2 class="panel-title">${lang === "pt" ? "Visualização do Documento" : "Document Inspection"} · ${esc(doc.control_no || `Draft #${doc.id}`)}</h2>
           <div class="panel-sub">
-            Issued by ${esc(doc.issuer_rank)} ${esc(doc.issuer_name)} (#${esc(doc.issuer_badge)})
+            ${esc(doc.issuer_rank)} ${esc(doc.issuer_name)} (Distintivo #${esc(doc.issuer_badge)})
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          ${canApp ? `<button type="button" class="btn btn-primary" id="btn-modal-approve">✅ ${esc(t("btnApprove"))}</button>` : ""}
+          ${canApp ? `<button type="button" class="btn btn-primary" id="btn-modal-approve">${esc(t("btnApprove"))}</button>` : ""}
           ${canApp ? `<button type="button" class="btn btn-danger" id="btn-modal-reject">${esc(t("btnReject"))}</button>` : ""}
-          <button type="button" class="btn btn-primary" id="btn-modal-pdf">📥 ${lang === "pt" ? "Salvar em PDF" : "Save as PDF"}</button>
-          <button type="button" class="btn btn-secondary" id="btn-modal-print">🖨️ ${lang === "pt" ? "Imprimir Folha" : "Print Sheet"}</button>
+          <button type="button" class="btn btn-primary" id="btn-modal-pdf">${lang === "pt" ? "Salvar PDF" : "Save PDF"}</button>
+          <button type="button" class="btn btn-secondary" id="btn-modal-print">${lang === "pt" ? "Imprimir" : "Print"}</button>
           ${doc.status === "APPROVED" && officer.is_admin ? `<button type="button" class="btn btn-danger" id="btn-modal-revoke">${esc(t("btnRevoke"))}</button>` : ""}
-          <button type="button" class="btn btn-secondary" id="btn-close-inspect">${lang === "pt" ? "Fechar" : "Close Preview"}</button>
+          <button type="button" class="btn btn-secondary" id="btn-close-inspect">${lang === "pt" ? "Fechar" : "Close"}</button>
         </div>
       </div>
 
@@ -597,7 +739,7 @@ function renderInspectModal(container) {
         doc.png_url
           ? `
             <div class="fvm-link-bar no-print" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;margin-bottom:16px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-control);">
-              <strong style="font-size:12.5px;white-space:nowrap;">🖼️ ${lang === "pt" ? "Link Fivemanage:" : "Fivemanage Link:"}</strong>
+              <strong style="font-size:12.5px;white-space:nowrap;">${lang === "pt" ? "Link da imagem:" : "Image URL:"}</strong>
               <input
                 type="text"
                 class="input mono"
@@ -607,17 +749,17 @@ function renderInspectModal(container) {
                 style="flex:1;min-width:220px;height:30px;font-size:12.5px;background:var(--surface);"
               />
               <button type="button" class="btn btn-secondary" id="btn-copy-fm-modal">
-                📋 ${lang === "pt" ? "Copiar Link" : "Copy Link"}
+                ${lang === "pt" ? "Copiar Link" : "Copy Link"}
               </button>
               <a class="btn btn-secondary" href="${esc(doc.png_url)}" target="_blank" rel="noopener">
-                ↗️ ${lang === "pt" ? "Abrir Imagem" : "Open Image"}
+                ${lang === "pt" ? "Abrir Imagem" : "Open Image"}
               </a>
             </div>
           `
           : doc.status === "APPROVED"
             ? `
               <div class="fvm-link-bar no-print" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;margin-bottom:16px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-control);font-size:12.5px;color:var(--muted);">
-                <span>⏳ ${lang === "pt" ? "Gerando link da imagem no Fivemanage..." : "Uploading image to Fivemanage..."}</span>
+                <span>${lang === "pt" ? "Enviando imagem ao Fivemanage..." : "Uploading image to Fivemanage..."}</span>
               </div>
             `
             : ""
@@ -661,7 +803,7 @@ function renderInspectModal(container) {
     pdfBtn.addEventListener("click", async () => {
       const origText = pdfBtn.innerHTML;
       pdfBtn.disabled = true;
-      pdfBtn.innerHTML = `⏳ ${lang === "pt" ? "Gerando PDF..." : "Saving PDF..."}`;
+      pdfBtn.innerHTML = lang === "pt" ? "Gerando..." : "Generating...";
       try {
         await downloadDocumentPdf(doc);
       } finally {
@@ -693,7 +835,7 @@ function renderInspectModal(container) {
   const rejBtn = drawer.querySelector("#btn-modal-reject");
   if (rejBtn) {
     rejBtn.addEventListener("click", () => {
-      const reason = prompt(lang === "pt" ? "Justificativa para rejeitar esta minuta:" : "Reason for rejecting this draft:", lang === "pt" ? "Narrativa de causa provável insuficiente." : "Insufficient probable cause narrative.");
+      const reason = prompt(lang === "pt" ? "Justificativa da rejeição:" : "Rejection reason:", lang === "pt" ? "Causa provável insuficiente." : "Insufficient probable cause narrative.");
       if (!reason) return;
       try {
         rejectDocumentLocal(doc.id, reason);
@@ -707,7 +849,7 @@ function renderInspectModal(container) {
   const revBtn = drawer.querySelector("#btn-modal-revoke");
   if (revBtn) {
     revBtn.addEventListener("click", () => {
-      const reason = prompt("Enter official reason for revoking this record:", "Superseded / Administrative Revocation");
+      const reason = prompt(lang === "pt" ? "Motivo oficial de revogação:" : "Official reason for revocation:", "Revogação administrativa");
       if (!reason) return;
       try {
         revokeDocumentLocal(doc.id, reason);
@@ -724,7 +866,6 @@ function renderInspectModal(container) {
 function renderComposer(container, codeParam, savedValues = null) {
   const officer = getCurrentOfficer();
 
-  // If query string has ?lang=pt or ?lang=en, configure document language
   const hashParts = (window.location.hash || "").split("?");
   if (hashParts[1]) {
     const p = new URLSearchParams(hashParts[1]);
@@ -745,7 +886,7 @@ function renderComposer(container, codeParam, savedValues = null) {
     }
   });
 
-  const lang = getLanguage(); // Site UI language
+  const lang = getLanguage();
   const canSelfApproveThis = canApproveDocument(officer, {
     issuer_id: officer.id,
     min_approve_level: rawTpl.min_approve_level,
@@ -756,7 +897,7 @@ function renderComposer(container, codeParam, savedValues = null) {
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">${esc(t("composerTitle"))} — [${esc(tpl.code)}]</h1>
+        <h1 class="page-title">${esc(t("composerTitle"))} · [${esc(tpl.code)}]</h1>
         <p class="page-sub">
           ${esc(tpl.name)} · ${esc(t("fieldAuthorityNotice", {
             minIssue: tpl.min_issue_level,
@@ -765,8 +906,8 @@ function renderComposer(container, codeParam, savedValues = null) {
         </p>
       </div>
       <div class="header-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:700;" title="${esc(t("siteLangNotice"))}">
-          ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:600;" title="${esc(t("siteLangNotice"))}">
+          ${lang === 'pt' ? 'PT' : 'EN'}
         </button>
         <select id="tpl-picker" class="select" style="width:280px;">
           ${store.templates
@@ -785,27 +926,20 @@ function renderComposer(container, codeParam, savedValues = null) {
         <div class="panel-header" style="margin-bottom:14px;">
           <div>
             <h2 class="panel-title">${esc(tpl.name)}</h2>
-            <div class="panel-sub">${esc(officer.rank_name)} ${esc(officer.rp_name)} (Badge #${esc(officer.badge)})</div>
+            <div class="panel-sub">${esc(officer.rank_name)} ${esc(officer.rp_name)} (Distintivo #${esc(officer.badge)})</div>
           </div>
         </div>
 
-        <!-- BOTÕES DEDICADOS EXCLUSIVOS PARA O IDIOMA DO DOCUMENTO -->
-        <div class="doc-emission-lang-box" style="margin-bottom:18px;padding:12px 16px;background:rgba(15,23,42,0.04);border:1px solid var(--border);border-radius:var(--radius-card);">
+        <div class="doc-emission-lang-box" style="margin-bottom:18px;padding:12px 16px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-card);">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-            <div>
-              <div style="font-weight:700;font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px;">
-                <span>📄</span>
-                <span>${esc(t("docEmissionLangLabel"))}</span>
-              </div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px;">
-                ${esc(t("docEmissionLangHelp"))}
-              </div>
+            <div style="font-weight:600;font-size:13px;color:var(--text);">
+              ${esc(t("docEmissionLangLabel"))}
             </div>
-            <div class="btn-group" role="group" aria-label="Document Emission Language" style="display:inline-flex;flex-wrap:wrap;gap:6px;">
-              <button type="button" class="btn btn-sm ${docLang === 'pt' ? 'btn-primary' : 'btn-secondary'} btn-doc-lang-choice" data-doc-lang="pt" style="font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;">
+            <div class="btn-group" role="group" aria-label="Document Language" style="display:inline-flex;gap:6px;">
+              <button type="button" class="btn ${docLang === 'pt' ? 'btn-primary' : 'btn-secondary'} btn-doc-lang-choice" data-doc-lang="pt" style="font-weight:600;">
                 ${esc(t("btnDocLangPt"))}
               </button>
-              <button type="button" class="btn btn-sm ${docLang === 'en' ? 'btn-primary' : 'btn-secondary'} btn-doc-lang-choice" data-doc-lang="en" style="font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;">
+              <button type="button" class="btn ${docLang === 'en' ? 'btn-primary' : 'btn-secondary'} btn-doc-lang-choice" data-doc-lang="en" style="font-weight:600;">
                 ${esc(t("btnDocLangEn"))}
               </button>
             </div>
@@ -833,14 +967,14 @@ function renderComposer(container, codeParam, savedValues = null) {
 
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding-top:12px;border-top:1px solid var(--border);">
             <span style="font-size:12px;color:var(--muted);">
-              Discord: <strong>#📜emitir-docs</strong> · <span style="color:#145a32;font-weight:600;">● Sincronizado em Tempo Real</span>
+              Canal de registro: #emitir-docs · Sincronizado
             </span>
             <div style="display:flex;flex-wrap:wrap;gap:8px;">
               ${
                 canSelfApproveThis
                   ? `
                     <button type="button" id="btn-submit-draft-only" class="btn btn-secondary">${esc(t("btnSubmitDraft"))}</button>
-                    <button type="submit" id="btn-issue-and-approve" class="btn btn-primary">✅ ${lang === "pt" ? "Emitir & Contra-Assinar Agora" : "Issue & Counter-Sign Now"}</button>
+                    <button type="submit" id="btn-issue-and-approve" class="btn btn-primary">${lang === "pt" ? "Emitir e Aprovar" : "Issue & Approve"}</button>
                   `
                   : `<button type="submit" class="btn btn-primary">${esc(t("btnSubmitDraft"))}</button>`
               }
@@ -852,7 +986,7 @@ function renderComposer(container, codeParam, savedValues = null) {
       <aside class="sheet-stage">
         <div class="sheet-toolbar">
           <span><strong>${esc(t("liveStageTitle"))}</strong> · ${esc(t("liveStageSub"))}</span>
-          <span class="mono">${docLang.toUpperCase()} · Watermark · Seal</span>
+          <span class="mono">${docLang.toUpperCase()}</span>
         </div>
         <div id="live-sheet-holder">
           ${buildLiveSheetHtml(rawTpl, fieldValues, { lang: docLang })}
@@ -861,7 +995,6 @@ function renderComposer(container, codeParam, savedValues = null) {
     </div>
   `;
 
-  // Site language switcher (switches website UI interface only)
   document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
     btn.addEventListener("click", () => {
       container.querySelectorAll("[data-key]").forEach(inp => {
@@ -872,7 +1005,6 @@ function renderComposer(container, codeParam, savedValues = null) {
     });
   });
 
-  // Dedicated Document Emission Language buttons (switches document language and sheet only)
   container.querySelectorAll(".btn-doc-lang-choice").forEach(btn => {
     btn.addEventListener("click", () => {
       const selected = btn.getAttribute("data-doc-lang");
@@ -956,8 +1088,8 @@ function renderApprovals(container) {
         </p>
       </div>
       <div class="header-actions" style="display:flex;align-items:center;gap:8px;">
-        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:700;">
-          ${lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN'}
+        <button class="btn btn-secondary btn-lang-toggle" type="button" style="font-weight:600;">
+          ${lang === 'pt' ? 'PT' : 'EN'}
         </button>
       </div>
     </div>
@@ -977,9 +1109,7 @@ function renderApprovals(container) {
                   const allowed = canApproveDocument(officer, d);
                   const isSelf = Number(officer.id) === Number(d.issuer_id);
                   const isSelected = activeDoc && Number(d.id) === Number(activeDoc.id);
-                  const docLangBadge = (d.lang || "pt") === "en"
-                    ? '<span class="pill pill-pending" style="font-size:10px;padding:2px 6px;" title="English Document">🇺🇸 EN</span>'
-                    : '<span class="pill pill-approved" style="font-size:10px;padding:2px 6px;" title="Documento em Português">🇧🇷 PT</span>';
+                  const docLangBadge = `<span class="pill pill-neutral" style="font-size:10px;padding:2px 6px;">${(d.lang || "pt").toUpperCase()}</span>`;
                   const tplRes = resolveTemplateForLang(
                     store.templates.find(tplItem => tplItem.code === d.template_code) || { code: d.template_code, name: d.template_name },
                     d.lang || "pt"
@@ -993,7 +1123,7 @@ function renderApprovals(container) {
                             ${docLangBadge}
                           </div>
                           <div style="font-size:12px;color:var(--muted);margin-top:4px;">
-                            ${esc(t("colIssuer"))}: <strong>${esc(d.issuer_rank)} ${esc(d.issuer_name)}</strong> <span class="mono">(Badge #${esc(d.issuer_badge)})</span>
+                            ${esc(t("colIssuer"))}: <strong>${esc(d.issuer_rank)} ${esc(d.issuer_name)}</strong> <span class="mono">(Distintivo #${esc(d.issuer_badge)})</span>
                           </div>
                         </div>
                         <span class="pill pill-neutral">${d.category === "doj" ? "Commander+" : "Corporal+"}</span>
@@ -1001,7 +1131,7 @@ function renderApprovals(container) {
 
                       <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:8px;border-top:1px solid var(--rule);">
                         <button type="button" class="btn btn-primary" data-approve-id="${d.id}" ${!allowed ? "disabled" : ""} title="${!allowed && isSelf ? "Autoaprovação restrita ao High Command" : ""}">
-                          ✅ ${esc(t("btnApprove"))}
+                          ${esc(t("btnApprove"))}
                         </button>
                         <button type="button" class="btn btn-danger" data-reject-id="${d.id}" ${!allowed ? "disabled" : ""}>
                           ${esc(t("btnReject"))}
@@ -1028,10 +1158,10 @@ function renderApprovals(container) {
                     </div>
                     <div style="display:flex;flex-wrap:wrap;gap:8px;">
                       <button type="button" class="btn btn-secondary" id="btn-approval-pdf">
-                        📥 ${lang === "pt" ? "Salvar em PDF" : "Save as PDF"}
+                        ${lang === "pt" ? "Salvar PDF" : "Save PDF"}
                       </button>
                       <button type="button" class="btn btn-primary" data-approve-id="${activeDoc.id}" ${!canApproveDocument(officer, activeDoc) ? "disabled" : ""}>
-                        ✅ ${esc(t("btnApprove"))}
+                        ${esc(t("btnApprove"))}
                       </button>
                       <button type="button" class="btn btn-danger" data-reject-id="${activeDoc.id}" ${!canApproveDocument(officer, activeDoc) ? "disabled" : ""}>
                         ${esc(t("btnReject"))}
@@ -1104,8 +1234,8 @@ function renderApprovals(container) {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-reject-id"));
       const reason = prompt(
-        lang === "pt" ? "Justificativa para rejeitar esta minuta:" : "Reason for rejecting this draft:",
-        lang === "pt" ? "Narrativa de causa provável insuficiente." : "Insufficient probable cause narrative."
+        lang === "pt" ? "Justificativa da rejeição:" : "Rejection reason:",
+        lang === "pt" ? "Causa provável insuficiente." : "Insufficient probable cause narrative."
       );
       if (!reason) return;
       try {
@@ -1126,25 +1256,25 @@ function renderOfficers(container) {
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Sworn Officers & Manual Admission</h1>
-        <p class="page-sub">Officers sync their rank automatically from Discord roles, but require Admin Admission before issuing documents</p>
+        <h1 class="page-title">${esc(t("officersTitle"))}</h1>
+        <p class="page-sub">${esc(t("officersSub"))}</p>
       </div>
     </div>
 
     <div class="grid-asymmetric">
       <section class="panel">
         <div class="panel-header">
-          <h2 class="panel-title">Departmental Roster (${store.officers.length})</h2>
+          <h2 class="panel-title">${esc(t("officersTitle"))} (${store.officers.length})</h2>
         </div>
         <div class="table-wrap">
           <table class="data-table">
             <thead>
               <tr>
-                <th>Officer & Division</th>
-                <th>Rank</th>
-                <th>Cursive Signature</th>
-                <th>Status</th>
-                <th class="num">Action</th>
+                <th>${esc(t("colOfficerName"))}</th>
+                <th>${esc(t("colRank"))}</th>
+                <th>${esc(t("colSig"))}</th>
+                <th>${esc(t("colStatus"))}</th>
+                <th class="num">${esc(t("colActions"))}</th>
               </tr>
             </thead>
             <tbody>
@@ -1154,9 +1284,9 @@ function renderOfficers(container) {
                   <tr>
                     <td>
                       <div style="font-weight:600;">${esc(o.rp_name)} ${o.is_admin ? `<span class="pill pill-neutral" style="margin-left:4px;">Admin</span>` : ""}</div>
-                      <div class="mono" style="font-size:12px;color:var(--muted);">Badge #${esc(o.badge)} · Discord ${esc(maskId(o.discord_id))}</div>
+                      <div class="mono" style="font-size:12px;color:var(--muted);">Distintivo #${esc(o.badge)} · Discord ${esc(maskId(o.discord_id))}</div>
                     </td>
-                    <td>${esc(o.rank_name)} (Lvl ${o.rank_level})</td>
+                    <td>${esc(o.rank_name)} (Nível ${o.rank_level})</td>
                     <td><span style="font-family:var(--font-sig);font-size:22px;color:var(--pen);">${esc(o.rp_name)}</span></td>
                     <td>
                       <span class="pill ${o.status === "active" ? "pill-approved" : o.status === "pending" ? "pill-pending" : "pill-rejected"}">
@@ -1166,8 +1296,8 @@ function renderOfficers(container) {
                     <td class="num">
                       ${
                         o.status !== "active"
-                          ? `<button class="btn btn-primary" data-admit="${esc(o.discord_id)}" ${!caller.is_admin ? "disabled" : ""}>Admit</button>`
-                          : `<button class="btn btn-secondary" data-suspend="${esc(o.discord_id)}" ${!caller.is_admin ? "disabled" : ""}>Suspend</button>`
+                          ? `<button class="btn btn-primary" data-admit="${esc(o.discord_id)}" ${!caller.is_admin ? "disabled" : ""}>${esc(t("btnAdmit"))}</button>`
+                          : `<button class="btn btn-secondary" data-suspend="${esc(o.discord_id)}" ${!caller.is_admin ? "disabled" : ""}>${esc(t("btnSuspend"))}</button>`
                       }
                     </td>
                   </tr>
@@ -1181,38 +1311,38 @@ function renderOfficers(container) {
 
       <aside class="panel">
         <div class="panel-header">
-          <h2 class="panel-title">Register / Admit Officer Manually</h2>
+          <h2 class="panel-title">${esc(t("panelAddOfficer"))}</h2>
         </div>
         <form id="officer-form">
           <div class="field-group">
-            <label class="field-label">Discord User ID</label>
-            <input class="input mono" name="discord_id" placeholder="Discord Snowflake ID" required />
+            <label class="field-label">Discord ID</label>
+            <input class="input mono" name="discord_id" placeholder="Snowflake ID" required />
           </div>
           <div class="field-group">
-            <label class="field-label">Roleplay Full Name (Used for Auto-Signature)</label>
-            <input class="input" name="rp_name" placeholder="Officer Full Name" required />
+            <label class="field-label">${esc(t("recoverySigLabel"))}</label>
+            <input class="input" name="rp_name" placeholder="Nome Completo" required />
           </div>
           <div class="field-group">
-            <label class="field-label">Badge Number</label>
-            <input class="input mono" name="badge" placeholder="4210" required />
+            <label class="field-label">${esc(t("recoveryBadgeLabel"))}</label>
+            <input class="input mono" name="badge" placeholder="101" required />
           </div>
           <div class="field-group">
-            <label class="field-label">Division</label>
+            <label class="field-label">Divisão</label>
             <input class="input" name="division" value="Patrol Division" required />
           </div>
           <div class="field-group">
-            <label class="field-label">Assigned Rank</label>
+            <label class="field-label">Patente</label>
             <select class="select" name="rank_id">
-              ${store.ranks.map(r => `<option value="${r.id}">[Lvl ${r.level}] ${esc(r.name)}</option>`).join("")}
+              ${store.ranks.map(r => `<option value="${r.id}">[Nível ${r.level}] ${esc(r.name)}</option>`).join("")}
             </select>
           </div>
           <div class="field-group">
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
-              <input type="checkbox" name="is_admin" /> Grant Command System Admin privileges
+              <input type="checkbox" name="is_admin" /> Conceder permissão de Administrador
             </label>
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" ${!caller.is_admin ? "disabled" : ""}>
-            Save & Admit Officer
+            Salvar Oficial
           </button>
         </form>
       </aside>
@@ -1262,24 +1392,24 @@ function renderRanks(container) {
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">UPD Rank Hierarchy & Discord Role Mapping</h1>
-        <p class="page-sub">Level 5+ (Corporal+) counter-signs Internal records · Level 11+ (Commander+) counter-signs DOJ Judicial Filings</p>
+        <h1 class="page-title">${esc(t("ranksTitle"))}</h1>
+        <p class="page-sub">${esc(t("ranksSub"))}</p>
       </div>
     </div>
 
     <div class="grid-asymmetric">
       <section class="panel">
         <div class="panel-header">
-          <h2 class="panel-title">Configured Hierarchy (${store.ranks.length} Levels)</h2>
+          <h2 class="panel-title">Patentes (${store.ranks.length})</h2>
         </div>
         <table class="data-table">
           <thead>
             <tr>
-              <th class="num">Level</th>
-              <th>Rank Title</th>
-              <th>Approval Authority</th>
-              <th>Mapped Discord Role ID</th>
-              <th class="num">Update</th>
+              <th class="num">${esc(t("colLevel"))}</th>
+              <th>${esc(t("colRankTitle"))}</th>
+              <th>${esc(t("colAuthority"))}</th>
+              <th>${esc(t("colRoleInput"))}</th>
+              <th class="num">${esc(t("btnSave"))}</th>
             </tr>
           </thead>
           <tbody>
@@ -1292,17 +1422,17 @@ function renderRanks(container) {
                   <td>
                     ${
                       r.level >= 11
-                        ? `<span class="pill pill-approved">DOJ & Internal Approver</span>`
+                        ? `<span class="pill pill-approved">DOJ e Interno</span>`
                         : r.level >= 5
-                        ? `<span class="pill pill-pending">Internal Approver (Corporal+)</span>`
-                        : `<span class="pill pill-neutral">Issuing Officer</span>`
+                        ? `<span class="pill pill-pending">Interno (Corporal+)</span>`
+                        : `<span class="pill pill-neutral">Emissor</span>`
                     }
                   </td>
                   <td>
-                    <input class="input mono" type="password" data-role-input="${r.id}" value="${esc(r.discord_role_id || "")}" placeholder="Link Discord Role" style="height:28px;font-size:12px;" />
+                    <input class="input mono" type="password" data-role-input="${r.id}" value="${esc(r.discord_role_id || "")}" placeholder="Role ID" style="height:28px;font-size:12px;" />
                   </td>
                   <td class="num">
-                    <button class="btn btn-secondary" data-save-rank="${r.id}" ${!caller.is_admin ? "disabled" : ""}>Save</button>
+                    <button class="btn btn-secondary" data-save-rank="${r.id}" ${!caller.is_admin ? "disabled" : ""}>${esc(t("btnSave"))}</button>
                   </td>
                 </tr>
               `
@@ -1314,23 +1444,23 @@ function renderRanks(container) {
 
       <aside class="panel">
         <div class="panel-header">
-          <h2 class="panel-title">Add / Customize Rank</h2>
+          <h2 class="panel-title">${esc(t("panelAddRank"))}</h2>
         </div>
         <form id="rank-form">
           <div class="field-group">
-            <label class="field-label">Rank Title</label>
-            <input class="input" name="name" placeholder="Senior Lead Officer" required />
+            <label class="field-label">${esc(t("colRankTitle"))}</label>
+            <input class="input" name="name" placeholder="Título da patente" required />
           </div>
           <div class="field-group">
-            <label class="field-label">Numeric Authority Level</label>
+            <label class="field-label">${esc(t("colLevel"))}</label>
             <input class="input mono" name="level" type="number" min="1" max="99" placeholder="5" required />
           </div>
           <div class="field-group">
-            <label class="field-label">Discord Role ID</label>
-            <input class="input mono" name="discord_role_id" placeholder="Optional Discord Role ID" />
+            <label class="field-label">${esc(t("colRoleInput"))}</label>
+            <input class="input mono" name="discord_role_id" placeholder="ID opcional do cargo" />
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" ${!caller.is_admin ? "disabled" : ""}>
-            Save Rank Level
+            Salvar Patente
           </button>
         </form>
       </aside>
@@ -1370,8 +1500,8 @@ function renderTemplatesAdmin(container) {
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Document Templates Content Editor</h1>
-        <p class="page-sub">Edit statutory text, placeholders, and rank thresholds while keeping the official US-Letter layout locked</p>
+        <h1 class="page-title">${esc(t("templatesTitle"))}</h1>
+        <p class="page-sub">${esc(t("templatesSub"))}</p>
       </div>
       <div class="header-actions">
         <select id="admin-tpl-select" class="select" style="width:320px;">
@@ -1384,49 +1514,49 @@ function renderTemplatesAdmin(container) {
       <section class="panel">
         <form id="tpl-edit-form">
           <div class="field-group">
-            <label class="field-label">Template Name</label>
+            <label class="field-label">Nome do Modelo</label>
             <input class="input" name="name" value="${esc(tpl.name)}" required />
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
             <div class="field-group">
-              <label class="field-label">Series Category</label>
+              <label class="field-label">Categoria</label>
               <select class="select" name="category">
                 <option value="doj" ${tpl.category === "doj" ? "selected" : ""}>DOJ Judicial</option>
-                <option value="internal" ${tpl.category === "internal" ? "selected" : ""}>Internal UPD</option>
+                <option value="internal" ${tpl.category === "internal" ? "selected" : ""}>Interno UPD</option>
               </select>
             </div>
             <div class="field-group">
-              <label class="field-label">Min Issue Lvl</label>
+              <label class="field-label">Nível Mínimo Emissão</label>
               <input class="input mono" type="number" name="min_issue_level" value="${tpl.min_issue_level}" required />
             </div>
             <div class="field-group">
-              <label class="field-label">Min Approve Lvl</label>
+              <label class="field-label">Nível Mínimo Assinatura</label>
               <input class="input mono" type="number" name="min_approve_level" value="${tpl.min_approve_level}" required />
             </div>
           </div>
           <div class="field-group">
-            <label class="field-label">Court / Departmental Caption Banner</label>
+            <label class="field-label">Cabeçalho de Tribunal</label>
             <textarea class="textarea" name="court_header" style="min-height:54px;">${esc(tpl.court_header)}</textarea>
           </div>
           <div class="field-group">
-            <label class="field-label">Document Formal Heading</label>
+            <label class="field-label">Título Formal do Documento</label>
             <textarea class="textarea" name="title" style="min-height:54px;">${esc(tpl.title)}</textarea>
           </div>
           <div class="field-group">
             <label class="field-label">
-              <span>Standardized Body Template</span>
-              <span class="field-hint mono">Placeholders: {issuer_name}, {issuer_badge}, ${tpl.fields.map(f => `{${f.key}}`).join(", ")}</span>
+              <span>Texto Padrão do Documento</span>
+              <span class="field-hint mono">{issuer_name}, {issuer_badge}, ${tpl.fields.map(f => `{${f.key}}`).join(", ")}</span>
             </label>
             <textarea class="textarea mono" name="body" id="tpl-body-editor" style="min-height:240px;font-size:12.5px;">${esc(tpl.body)}</textarea>
           </div>
-          <button type="submit" class="btn btn-primary" ${!caller.is_admin ? "disabled" : ""}>Save Template Version (v${(tpl.version || 1) + 1})</button>
+          <button type="submit" class="btn btn-primary" ${!caller.is_admin ? "disabled" : ""}>Salvar Modelo</button>
         </form>
       </section>
 
       <aside class="sheet-stage">
         <div class="sheet-toolbar">
-          <span><strong>Live Template Layout Preview</strong></span>
-          <span class="mono">Version ${tpl.version || 1}</span>
+          <span><strong>Pré-visualização do Modelo</strong></span>
+          <span class="mono">v${tpl.version || 1}</span>
         </div>
         <div id="tpl-live-preview">
           ${buildLiveSheetHtml(tpl, sampleValues)}
@@ -1493,7 +1623,7 @@ export function renderApp() {
 
   const lang = getLanguage();
   document.querySelectorAll(".btn-lang-toggle").forEach(btn => {
-    btn.textContent = lang === "pt" ? "🇧🇷 PT" : "🇺🇸 EN";
+    btn.textContent = lang === "pt" ? "PT" : "EN";
     btn.onclick = () => {
       setLanguage(getLanguage() === "pt" ? "en" : "pt");
       renderApp();

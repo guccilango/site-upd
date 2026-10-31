@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>UPD Official Record Verification — Public Registry</title>
+  <title>UPD Records Bureau · Consulta de Autenticidade</title>
   <link rel="icon" type="image/png" href="./assets/opacidade2.png" />
-  <link rel="stylesheet" href="./style.css" />
-  <script src="./config.js"></script>
+  <link rel="stylesheet" href="./style.css?v=8" />
+  <script src="./config.js?v=8"></script>
   <style>
     @media print {
       body {
@@ -33,7 +33,7 @@
         margin: 0 !important;
       }
       .us-letter-sheet {
-        box-shadow: none !important;
+        box-shadow: none !important; /* taste-skill-ignore */
         border: 1px solid #111e38 !important;
         margin: 0 auto !important;
         page-break-inside: avoid !important;
@@ -68,11 +68,9 @@
     }
 
     .doc-full-title {
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--navy);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -85,13 +83,13 @@
       <div style="display:flex;align-items:center;gap:14px;">
         <img src="./assets/opacidade2.png" alt="UPD Crest" style="width:48px;height:48px;object-fit:contain;" />
         <div>
-          <h1 class="page-title" id="page-title">Public Record Authenticity Registry</h1>
-          <p class="page-sub" id="page-sub">Unified Police Department · County of Los Santos · Cryptographic & Control Number Verification</p>
+          <h1 class="page-title" id="page-title">Consulta de Autenticidade</h1>
+          <p class="page-sub" id="page-sub">Unified Police Department · Los Santos</p>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <button class="btn btn-secondary" id="btn-verify-lang" type="button" style="font-weight:700;">🇧🇷 PT</button>
-        <a class="btn btn-secondary" id="btn-back" href="./index.html">Back to Officer Portal</a>
+        <button class="btn btn-secondary" id="btn-verify-lang" type="button" style="font-weight:600;">PT</button>
+        <a class="btn btn-secondary" id="btn-back" href="./index.html">Voltar ao Portal</a>
       </div>
     </div>
 
@@ -100,13 +98,13 @@
         <input
           class="input mono"
           id="verify-input"
-          placeholder="Enter Control Number (e.g., UPD-SW-2026-0001 or UPD-FQ-2026-0001)"
+          placeholder="Nº de Controle (ex: UPD-SW-2026-0001)"
           required
         />
-        <button class="btn btn-primary" id="btn-submit-verify" type="submit">Verify Record</button>
+        <button class="btn btn-primary" id="btn-submit-verify" type="submit">Consultar</button>
       </form>
-      <div id="verify-caption" style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.5;">
-        A verificação pública autentica a validade oficial do documento, emitente e autoridade de contra-assinatura de comando com acesso à íntegra oficial registrada.
+      <div id="verify-caption" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.5;">
+        Consulte a autenticidade de mandados e certidões emitidos pelo bureau.
       </div>
     </section>
 
@@ -114,9 +112,9 @@
   </main>
 
   <script type="module">
-    import { fetchPublicVerifyRecord, store, pullSharedStore } from "./api.js?v=7";
-    import { t, getLanguage, setLanguage } from "./i18n.js?v=7";
-    import { buildLiveSheetHtml, esc, getSiteVerifyUrl } from "./sheet-renderer.js?v=7";
+    import { fetchPublicVerifyRecord, store, pullSharedStore } from "./api.js?v=8";
+    import { t, getLanguage, setLanguage } from "./i18n.js?v=8";
+    import { buildLiveSheetHtml, esc, getSiteVerifyUrl } from "./sheet-renderer.js?v=8";
 
     const input = document.getElementById("verify-input");
     const resultBox = document.getElementById("verify-result");
@@ -125,7 +123,7 @@
     function copyToClipboard(text, btn) {
       const orig = btn.innerHTML;
       const done = () => {
-        btn.innerHTML = "✅ Copiado!";
+        btn.innerHTML = "Copiado";
         setTimeout(() => { btn.innerHTML = orig; }, 1800);
       };
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -137,15 +135,15 @@
 
     function updateStaticTexts() {
       const lang = getLanguage();
-      langBtn.textContent = lang === "pt" ? "🇧🇷 PT" : "🇺🇸 EN";
+      langBtn.textContent = lang === "pt" ? "PT" : "EN";
       document.getElementById("page-title").textContent = t("qrTitle");
       document.getElementById("page-sub").textContent = t("qrSub");
       document.getElementById("btn-back").textContent = t("backToPortal");
       input.placeholder = t("qrPlaceholder");
       document.getElementById("btn-submit-verify").textContent = t("btnVerify");
       document.getElementById("verify-caption").textContent = lang === "pt"
-        ? "A verificação pública autentica a validade oficial do documento, emitente e autoridade de contra-assinatura de comando com acesso à íntegra oficial registrada."
-        : "Public verification confirms official issuance and command counter-signature with full authentic judicial/administrative record rendering.";
+        ? "Consulte a autenticidade de mandados e certidões emitidos pelo bureau."
+        : "Verify official warrants and certificates issued by the bureau.";
     }
 
     langBtn.addEventListener("click", () => {
@@ -163,8 +161,8 @@
 
       resultBox.innerHTML = `
         <div style="text-align:center;padding:36px;color:var(--muted);">
-          <div style="font-weight:600;margin-bottom:6px;">${isPt ? "Consultando Registro Oficial..." : "Verifying Official Registry..."}</div>
-          <div style="font-size:12px;">Unified Police Department · Control No. ${esc(code)}</div>
+          <div style="font-weight:600;margin-bottom:6px;">${isPt ? "Consultando Registro Oficial..." : "Consulting Registry..."}</div>
+          <div style="font-size:13px;">Unified Police Department · ${esc(code)}</div>
         </div>
       `;
 
@@ -180,7 +178,7 @@
           <section class="panel" style="border-color:#f8c6c0;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
               <h2 class="panel-title">${esc(t("recordNotFound"))}</h2>
-              <span class="pill pill-rejected">${isPt ? "NÃO ENCONTRADO" : "UNVERIFIED"}</span>
+              <span class="pill pill-rejected">${isPt ? "NÃO ENCONTRADO" : "NOT FOUND"}</span>
             </div>
             <p style="margin:0;color:var(--muted);line-height:1.5;">
               ${esc(t("notFoundDesc", { code }))}
@@ -193,7 +191,6 @@
       const isValid = rec.status === "APPROVED";
       const fullVerifyUrl = getSiteVerifyUrl(rec.control_no);
 
-      // Renderiza a folha HTML oficial completa
       let sheetHtml = "";
       if (rec.template && rec.doc) {
         sheetHtml = buildLiveSheetHtml(
@@ -219,13 +216,12 @@
       }
 
       resultBox.innerHTML = `
-        <!-- Painel de Resumo / Autenticidade -->
         <section class="panel panel-summary-only">
           <div class="panel-header">
             <div style="display:flex;align-items:center;gap:14px;">
-              <img src="./assets/selo.png" alt="Official Seal" style="width:54px;height:54px;object-fit:contain;" />
+              <img src="./assets/selo.png" alt="Official Seal" style="width:52px;height:52px;object-fit:contain;" />
               <div>
-                <h2 class="panel-title mono" style="font-size:18px;">${esc(rec.control_no)}</h2>
+                <h2 class="panel-title mono" style="font-size:17px;">${esc(rec.control_no)}</h2>
                 <div class="panel-sub" style="font-size:13px;font-weight:600;color:var(--navy);">${esc(rec.document_title)}</div>
               </div>
             </div>
@@ -237,36 +233,36 @@
           <table class="data-table">
             <tbody>
               <tr>
-                <th style="width:230px;">${isPt ? "Nº de Controle Oficial" : "Official Control No."}</th>
-                <td class="mono" style="font-weight:700;color:var(--navy);">${esc(rec.control_no)}</td>
+                <th style="width:230px;">${isPt ? "Nº de Controle" : "Control No."}</th>
+                <td class="mono" style="font-weight:600;color:var(--navy);">${esc(rec.control_no)}</td>
               </tr>
               <tr>
-                <th>${isPt ? "Classificação do Registro" : "Document Classification"}</th>
-                <td>${rec.category === "doj" ? (isPt ? "Processo Judicial DOJ (Tribunal Superior)" : "DOJ Judicial Filing (Superior Court)") : (isPt ? "Certificação Departamental Interna" : "Internal Departmental Certification")}</td>
+                <th>${isPt ? "Classificação" : "Classification"}</th>
+                <td>${rec.category === "doj" ? (isPt ? "Processo Judicial (DOJ)" : "Judicial Filing (DOJ)") : (isPt ? "Registro Interno (UPD)" : "Internal Record (UPD)")}</td>
               </tr>
               <tr>
-                <th>${isPt ? "Oficial Requerente / Emissor" : "Submitting / Affiant Officer"}</th>
+                <th>${isPt ? "Oficial Emissor" : "Issuing Officer"}</th>
                 <td>${esc(rec.issued_by)}</td>
               </tr>
               <tr>
-                <th>${isPt ? "Autoridade de Comando Responsável" : "Approving Command Authority"}</th>
-                <td>${esc(rec.approved_by || (isPt ? "— Pendente de Aprovação —" : "— Pending Approval —"))}</td>
+                <th>${isPt ? "Autoridade de Comando" : "Command Authority"}</th>
+                <td>${esc(rec.approved_by || (isPt ? "Pendente" : "Pending"))}</td>
               </tr>
               <tr>
-                <th>${isPt ? "Idioma Oficial do Documento" : "Official Document Language"}</th>
-                <td>${(rec.lang || "pt") === "en" ? "🇺🇸 English (US Official Standards)" : "🇧🇷 Português (RP Americano Traduzido)"}</td>
+                <th>${isPt ? "Idioma do Documento" : "Document Language"}</th>
+                <td>${(rec.lang || "pt") === "en" ? "English" : "Português"}</td>
               </tr>
               <tr>
-                <th>${isPt ? "Data e Hora da Autenticação" : "Timestamp of Authentication"}</th>
+                <th>${isPt ? "Data de Autenticação" : "Authentication Date"}</th>
                 <td class="mono">${esc((rec.approved_at || "").slice(0, 19).replace("T", " "))} UTC</td>
               </tr>
               <tr>
-                <th>${isPt ? "Link Canônico de Verificação" : "Canonical Verification URL"}</th>
+                <th>${isPt ? "Link de Verificação" : "Verification URL"}</th>
                 <td class="mono" style="word-break:break-all;"><a href="${esc(fullVerifyUrl)}" style="color:var(--navy);text-decoration:underline;">${esc(fullVerifyUrl)}</a></td>
               </tr>
               ${
                 rec.png_url
-                  ? `<tr><th>${isPt ? "Imagem Oficial (Fivemanage)" : "Official Image (Fivemanage)"}</th><td><a href="${esc(rec.png_url)}" target="_blank" rel="noopener" class="mono" style="color:var(--accent);text-decoration:underline;word-break:break-all;">${esc(rec.png_url)}</a></td></tr>`
+                  ? `<tr><th>${isPt ? "Imagem Oficial" : "Official Image"}</th><td><a href="${esc(rec.png_url)}" target="_blank" rel="noopener" class="mono" style="color:var(--accent);text-decoration:underline;word-break:break-all;">${esc(rec.png_url)}</a></td></tr>`
                   : ""
               }
               ${
@@ -280,35 +276,34 @@
           <div class="verify-actions-bar no-print">
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn btn-primary" id="btn-print-doc" type="button">
-                🖨️ ${isPt ? "Imprimir / Salvar PDF Oficial" : "Print / Save Official PDF"}
+                ${isPt ? "Imprimir / PDF" : "Print / PDF"}
               </button>
               <button class="btn btn-secondary" id="btn-copy-url" type="button">
-                📋 ${isPt ? "Copiar Link de Verificação" : "Copy Verification URL"}
+                ${isPt ? "Copiar Link" : "Copy Link"}
               </button>
               ${
                 rec.png_url
                   ? `<a class="btn btn-secondary" href="${esc(rec.png_url)}" target="_blank" rel="noopener">
-                      🖼️ ${isPt ? "Ver Imagem Fivemanage" : "View Fivemanage Image"}
+                      ${isPt ? "Ver Imagem" : "View Image"}
                     </a>`
                   : ""
               }
             </div>
-            <div style="font-size:11px;color:var(--muted);">
-              ${isPt ? "Documento criptograficamente validado pela UPD" : "Cryptographically authenticated record"}
+            <div style="font-size:13px;color:var(--muted);">
+              ${isPt ? "Registro autenticado e arquivado." : "Authenticated record."}
             </div>
           </div>
         </section>
 
-        <!-- Folha Oficial Completa (HTML) -->
         ${
           sheetHtml
             ? `
               <div class="doc-full-header no-print">
                 <div class="doc-full-title">
-                  <span>📄</span> ${isPt ? "Folha Oficial do Documento Registrado (HTML Completo)" : "Registered Official Document Sheet (Full HTML)"}
+                  ${isPt ? "Folha Oficial do Registro" : "Official Record Document"}
                 </div>
                 <div style="font-size:12px;color:var(--muted);">
-                  ${isPt ? "Padrão Oficial US Letter · 8.5 x 11 pol" : "Official US Letter Standard · 8.5 x 11 in"}
+                  US Letter (8.5 × 11 in)
                 </div>
               </div>
 
@@ -320,18 +315,17 @@
             ? `
               <div class="doc-full-header no-print">
                 <div class="doc-full-title">
-                  <span>🖼️</span> ${isPt ? "Imagem Oficial Registrada" : "Registered Official Image"}
+                  ${isPt ? "Imagem Oficial Registrada" : "Registered Official Image"}
                 </div>
               </div>
               <div style="text-align:center;margin-top:16px;">
-                <img src="${esc(rec.png_url)}" alt="Official Document" style="max-width:100%;border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.15);" />
+                <img src="${esc(rec.png_url)}" alt="Official Document" style="max-width:100%;border-radius:4px;border:1px solid var(--border);" />
               </div>
             `
             : ""
         }
       `;
 
-      // Eventos dos botões de ação
       const btnPrint = document.getElementById("btn-print-doc");
       if (btnPrint) {
         btnPrint.addEventListener("click", () => {
