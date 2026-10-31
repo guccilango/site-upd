@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UPD Official Record Verification — Public Registry</title>
+  <link rel="icon" type="image/png" href="./assets/opacidade2.png" />
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./config.js"></script>
+</head>
+<body>
+  <main class="canvas" style="max-width:760px;margin:0 auto;padding-top:44px;">
+    <div class="page-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <img src="./assets/opacidade2.png" alt="UPD Crest" style="width:44px;height:44px;" />
+        <div>
+          <h1 class="page-title">Public Record Authenticity Registry</h1>
+          <p class="page-sub">Unified Police Department · County of Los Santos · Cryptographic & Control Number Verification</p>
+        </div>
+      </div>
+      <a class="btn btn-secondary" href="./index.html">Back to Officer Portal</a>
+    </div>
+
+    <section class="panel">
+      <form id="verify-form" style="display:flex;gap:10px;align-items:center;">
+        <input
+          class="input mono"
+          id="verify-input"
+          placeholder="Enter Control Number (e.g., UPD-SW-2026-0001 or UPD-FQ-2026-0001)"
+          required
+        />
+        <button class="btn btn-primary" type="submit">Verify Record</button>
+      </form>
+      <div style="margin-top:8px;font-size:12px;color:var(--muted);">
+        Public verification confirms official issuance and command counter-signature without exposing confidential probable-cause narratives.
+      </div>
+    </section>
+
+    <div id="verify-result"></div>
+  </main>
+
+  <script type="module">
+    import { verifyControlNoLocal } from "./api.js";
+
+    const input = document.getElementById("verify-input");
+    const resultBox = document.getElementById("verify-result");
+
+    function esc(s) {
+      return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    async function runVerification(ctrlNo) {
+      const code = (ctrlNo || "").trim().toUpperCase();
+      if (!code) return;
+      input.value = code;
+
+      let rec = null;
+      try {
+        const res = await fetch(`${window.UPD_CONFIG.API_URL}/api/verify/${encodeURIComponent(code)}`);
+        if (res.ok) rec = await res.json();
+      } catch (_) {}
+
+      if (!rec) {
+        rec = verifyControlNoLocal(code);
+      }
+
+      if (!rec) {
+        resultBox.innerHTML = `
+          <section class="panel" style="border-color:#f8c6c0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <h2 class="panel-title">Record Not Found</h2>
+              <span class="pill pill-rejected">UNVERIFIED</span>
+            </div>
+            <p style="margin:0;color:var(--muted);">
+              No official record matching control number <strong class="mono">${esc(code)}</strong> exists in the Unified Police Department Registry.
+            </p>
+          </section>
+        `;
+        return;
+      }
+
+      const isValid = rec.status === "APPROVED";
+      resultBox.innerHTML = `
+        <section class="panel">
+          <div class="panel-header">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <img src="./assets/selo.png" alt="Official Seal" style="width:52px;height:52px;" />
+              <div>
+                <h2 class="panel-title mono">${esc(rec.control_no)}</h2>
+                <div class="panel-sub">${esc(rec.document_title)}</div>
+              </div>
+            </div>
+            <span class="pill ${isValid ? "pill-approved" : "pill-revoked"}">
+              ${isValid ? "VALID · AUTHENTICATED" : esc(rec.status)}
+            </span>
+          </div>
+
+          <table class="data-table">
+            <tbody>
+              <tr>
+                <th style="width:210px;">Control Number</th>
+                <td class="mono" style="font-weight:600;">${esc(rec.control_no)}</td>
+              </tr>
+              <tr>
+                <th>Document Classification</th>
+                <td>${rec.category === "doj" ? "DOJ Judicial Filing (Superior Court)" : "Internal Departmental Certification"}</td>
+              </tr>
+              <tr>
+                <th>Submitting / Affiant Officer</th>
+                <td>${esc(rec.issued_by)}</td>
+              </tr>
+              <tr>
+                <th>Approving Command Authority</th>
+                <td>${esc(rec.approved_by)}</td>
+              </tr>
+              <tr>
+                <th>Timestamp of Authentication</th>
+                <td class="mono">${esc((rec.approved_at || "").slice(0, 19).replace("T", " "))} UTC</td>
+              </tr>
+              ${
+                rec.revocation_note
+                  ? `<tr><th>Revocation Notice</th><td style="color:var(--negative);font-weight:600;">${esc(rec.revocation_note)}</td></tr>`
+                  : ""
+              }
+            </tbody>
+          </table>
+        </section>
+      `;
+    }
+
+    document.getElementById("verify-form").addEventListener("submit", e => {
+      e.preventDefault();
+      runVerification(input.value);
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const initialNo = params.get("n") || "UPD-SW-2026-0001";
+    runVerification(initialNo);
+  </script>
+</body>
+</html>

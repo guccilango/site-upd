@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UPD Records Bureau — Judicial Filings & Command Portal</title>
+  <link rel="icon" type="image/png" href="./assets/opacidade2.png" />
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./config.js"></script>
+</head>
+<body>
+  <header class="mobile-topbar">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <img src="./assets/opacidade2.png" alt="UPD" style="width:26px;height:26px;border-radius:50%;" />
+      <strong style="font-size:14px;">UPD Records Bureau</strong>
+    </div>
+    <button class="btn btn-secondary" id="mobile-menu-btn" type="button">Menu</button>
+  </header>
+
+  <div class="app-shell">
+    <nav class="sidebar" id="sidebar-nav" aria-label="Primary Navigation"></nav>
+    <main class="canvas" id="main-canvas"></main>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
