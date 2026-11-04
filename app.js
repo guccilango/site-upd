@@ -5,6 +5,8 @@ import {
   loginOwnerDirect,
   getDiscordOAuthUrl,
   handleDiscordOAuthCallbackIfPresent,
+  isCidRank,
+  completeOfficerRpName,
   canIssueTemplate,
   canApproveDocument,
   createDraftLocal,
@@ -248,13 +250,165 @@ function renderLoginScreen() {
 
 let currentDocFilter = "all";
 let selectedInspectDocId = null;
+let editingRpNameMode = false;
+
+function renderRpNameOnboarding(container, officer) {
+  const lang = getLanguage();
+  const sidebar = document.getElementById("sidebar-nav");
+  sidebar.innerHTML = `
+    <div>
+      <div class="brand-switcher" style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <img class="brand-crest" src="./assets/opacidade2.png" alt="UPD Crest" />
+          <div class="brand-meta">
+            <div class="brand-title">${esc(t("brandTitle"))}</div>
+            <div class="brand-sub">${esc(t("brandSub"))}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <button class="btn btn-secondary" id="btn-onboard-logout" type="button" style="justify-content:center;width:100%;">
+        ${esc(t("signOut"))}
+      </button>
+    </div>
+  `;
+  sidebar.querySelector("#btn-onboard-logout")?.addEventListener("click", () => {
+    editingRpNameMode = false;
+    logoutOfficer();
+    renderApp();
+  });
+
+  const rankBadgeLabel = isCidRank(officer)
+    ? `${officer.rank_name} · ${lang === "pt" ? "Área Investigativa (DOJ)" : "Investigative (DOJ Only)"}`
+    : `${officer.rank_name} · Nível ${officer.rank_level}`;
+
+  container.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">${lang === "pt" ? "Identificação de Oficial" : "Officer Identification"}</h1>
+        <p class="page-sub">
+          ${lang === "pt"
+            ? "Seu cargo do Discord foi reconhecido automaticamente. Informe apenas seu nome em Roleplay para concluir."
+            : "Your Discord role was recognized automatically. Enter your Roleplay name to finish."}
+        </p>
+      </div>
+    </div>
+
+    <div style="max-width:560px;">
+      <section class="panel">
+        <div class="panel-header" style="margin-bottom:16px;">
+          <div>
+            <h2 class="panel-title">${lang === "pt" ? "Concluir Registro Automático" : "Complete Automatic Registration"}</h2>
+            <div class="panel-sub">${lang === "pt" ? "Dados vinculados pelo seu cargo no Discord" : "Linked from your Discord role"}</div>
+          </div>
+          <span class="pill pill-approved">${lang === "pt" ? "Cargo Verificado" : "Role Verified"}</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 14px;margin-bottom:18px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-control);font-size:13px;">
+          <div>
+            <div style="color:var(--muted);font-size:11.5px;">${lang === "pt" ? "Cargo Reconhecido" : "Recognized Rank"}</div>
+            <div style="font-weight:600;margin-top:2px;">${esc(rankBadgeLabel)}</div>
+          </div>
+          <div>
+            <div style="color:var(--muted);font-size:11.5px;">${lang === "pt" ? "Divisão" : "Division"}</div>
+            <div style="font-weight:600;margin-top:2px;">${esc(officer.division || "Unified Police Department")}</div>
+          </div>
+        </div>
+
+        <form id="rp-onboard-form">
+          <div class="field-group">
+            <label class="field-label" for="inp-rp-name">
+              <span>${lang === "pt" ? "Seu Nome em Roleplay (Assinatura Oficial)" : "Your Roleplay Name (Official Signature)"}</span>
+            </label>
+            <input
+              class="input"
+              id="inp-rp-name"
+              name="rp_name"
+              type="text"
+              maxlength="120"
+              placeholder="${lang === "pt" ? "Ex: John Nolan" : "e.g. John Nolan"}"
+              value="${esc(officer.rp_name || "")}"
+              required
+              autofocus
+            />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="inp-rp-badge">
+              <span>${lang === "pt" ? "Distintivo (Badge #)" : "Badge Number"}</span>
+              <span class="field-hint mono">${lang === "pt" ? "Preenchido automaticamente" : "Auto-filled"}</span>
+            </label>
+            <input
+              class="input mono"
+              id="inp-rp-badge"
+              name="badge"
+              type="text"
+              maxlength="16"
+              value="${esc(officer.badge || "")}"
+              required
+            />
+          </div>
+
+          <div style="padding:12px 14px;margin-bottom:18px;background:var(--raised);border:1px solid var(--border);border-radius:var(--radius-control);text-align:center;">
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">
+              ${lang === "pt" ? "Prévia da Assinatura no Documento" : "Document Signature Preview"}
+            </div>
+            <div id="rp-sig-live" style="font-family:var(--font-sig);font-size:32px;color:var(--pen);min-height:38px;">
+              ${esc(officer.rp_name || "Assinatura")}
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            ${
+              editingRpNameMode
+                ? `<button type="button" class="btn btn-secondary" id="btn-cancel-rp-edit">${lang === "pt" ? "Cancelar" : "Cancel"}</button>`
+                : ""
+            }
+            <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;height:38px;font-weight:600;">
+              ${lang === "pt" ? "Confirmar Nome e Acessar Portal" : "Confirm Name & Enter Portal"}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  `;
+
+  const nameInp = container.querySelector("#inp-rp-name");
+  const sigLive = container.querySelector("#rp-sig-live");
+  nameInp?.addEventListener("input", () => {
+    sigLive.textContent = nameInp.value.trim() || "Assinatura";
+  });
+
+  container.querySelector("#btn-cancel-rp-edit")?.addEventListener("click", () => {
+    editingRpNameMode = false;
+    renderApp();
+  });
+
+  container.querySelector("#rp-onboard-form")?.addEventListener("submit", e => {
+    e.preventDefault();
+    try {
+      const fd = new FormData(e.target);
+      completeOfficerRpName(fd.get("rp_name"), fd.get("badge"));
+      editingRpNameMode = false;
+      renderApp();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+}
 
 function renderSidebar() {
   const officer = getCurrentOfficer();
-  const pendingCount = store.documents.filter(d => d.status === "PENDING").length;
+  const cidOnly = isCidRank(officer) && !officer.is_admin;
+  const visibleDocs = cidOnly ? store.documents.filter(d => d.category === "doj") : store.documents;
+  const pendingCount = visibleDocs.filter(d => d.status === "PENDING").length;
   const pendingOfficers = store.officers.filter(o => o.status === "pending").length;
   const hash = window.location.hash || "#/";
   const lang = getLanguage();
+  const rankMetaLabel = isCidRank(officer)
+    ? `${officer.rank_name} · ${lang === "pt" ? "Investigativo (DOJ)" : "Investigative (DOJ)"}${officer.is_admin ? " · Admin" : ""}`
+    : `${officer.rank_name} · Nível ${officer.rank_level}${officer.is_admin ? " · Admin" : ""}`;
 
   document.getElementById("sidebar-nav").innerHTML = `
     <div>
@@ -277,7 +431,7 @@ function renderSidebar() {
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
                 <span>${esc(t("navOverview"))}</span>
               </span>
-              <span class="nav-count">${store.documents.length}</span>
+              <span class="nav-count">${visibleDocs.length}</span>
             </button>
           </li>
           <li>
@@ -300,46 +454,66 @@ function renderSidebar() {
         </ul>
       </div>
 
-      <div class="nav-group">
-        <div class="nav-group-label">${esc(t("navAdmin"))}</div>
-        <ul class="nav-list">
-          <li>
-            <button class="nav-btn ${hash === "#/oficiais" ? "active" : ""}" data-route="#/oficiais">
-              <span class="nav-btn-left">
-                <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span>${esc(t("navOfficers"))}</span>
-              </span>
-              <span class="nav-count">${pendingOfficers > 0 ? `${pendingOfficers} pendentes` : store.officers.length}</span>
-            </button>
-          </li>
-          <li>
-            <button class="nav-btn ${hash === "#/patentes" ? "active" : ""}" data-route="#/patentes">
-              <span class="nav-btn-left">
-                <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                <span>${esc(t("navRanks"))}</span>
-              </span>
-              <span class="nav-count">${store.ranks.length}</span>
-            </button>
-          </li>
-          <li>
-            <button class="nav-btn ${hash === "#/modelos" ? "active" : ""}" data-route="#/modelos">
-              <span class="nav-btn-left">
-                <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                <span>${esc(t("navTemplates"))}</span>
-              </span>
-              <span class="nav-count">${store.templates.length}</span>
-            </button>
-          </li>
-          <li>
-            <a class="nav-btn" href="./verify.html" style="text-decoration:none;">
-              <span class="nav-btn-left">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                <span>${esc(t("publicVerifier"))}</span>
-              </span>
-            </a>
-          </li>
-        </ul>
-      </div>
+      ${
+        cidOnly
+          ? `
+            <div class="nav-group">
+              <div class="nav-group-label">${esc(t("publicVerifier"))}</div>
+              <ul class="nav-list">
+                <li>
+                  <a class="nav-btn" href="./verify.html" style="text-decoration:none;">
+                    <span class="nav-btn-left">
+                      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                      <span>${esc(t("publicVerifier"))}</span>
+                    </span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          `
+          : `
+            <div class="nav-group">
+              <div class="nav-group-label">${esc(t("navAdmin"))}</div>
+              <ul class="nav-list">
+                <li>
+                  <button class="nav-btn ${hash === "#/oficiais" ? "active" : ""}" data-route="#/oficiais">
+                    <span class="nav-btn-left">
+                      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      <span>${esc(t("navOfficers"))}</span>
+                    </span>
+                    <span class="nav-count">${pendingOfficers > 0 ? `${pendingOfficers} pendentes` : store.officers.length}</span>
+                  </button>
+                </li>
+                <li>
+                  <button class="nav-btn ${hash === "#/patentes" ? "active" : ""}" data-route="#/patentes">
+                    <span class="nav-btn-left">
+                      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                      <span>${esc(t("navRanks"))}</span>
+                    </span>
+                    <span class="nav-count">${store.ranks.length}</span>
+                  </button>
+                </li>
+                <li>
+                  <button class="nav-btn ${hash === "#/modelos" ? "active" : ""}" data-route="#/modelos">
+                    <span class="nav-btn-left">
+                      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      <span>${esc(t("navTemplates"))}</span>
+                    </span>
+                    <span class="nav-count">${store.templates.length}</span>
+                  </button>
+                </li>
+                <li>
+                  <a class="nav-btn" href="./verify.html" style="text-decoration:none;">
+                    <span class="nav-btn-left">
+                      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                      <span>${esc(t("publicVerifier"))}</span>
+                    </span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          `
+      }
     </div>
 
     <div class="sidebar-footer">
@@ -348,8 +522,11 @@ function renderSidebar() {
           <span class="officer-name">${esc(officer.rp_name)}</span>
           <span class="mono" style="font-size:12px;color:var(--muted);">#${esc(officer.badge)}</span>
         </div>
-        <div class="officer-rank">${esc(officer.rank_name)} · Nível ${officer.rank_level}${officer.is_admin ? " · Admin" : ""}</div>
+        <div class="officer-rank">${esc(rankMetaLabel)}</div>
         <div class="officer-sig-preview">${esc(officer.rp_name)}</div>
+        <button class="btn btn-secondary" id="btn-edit-rp-name" type="button" style="width:100%;justify-content:center;margin-top:6px;height:26px;font-size:11.5px;">
+          ${lang === "pt" ? "Alterar Nome RP" : "Edit RP Name"}
+        </button>
       </div>
       <button class="btn btn-secondary" id="btn-logout" type="button" style="justify-content:center;">
         ${esc(t("signOut"))}
@@ -364,7 +541,13 @@ function renderSidebar() {
     });
   });
 
+  document.getElementById("btn-edit-rp-name")?.addEventListener("click", () => {
+    editingRpNameMode = true;
+    renderApp();
+  });
+
   document.getElementById("btn-logout").addEventListener("click", () => {
+    editingRpNameMode = false;
     logoutOfficer();
     renderApp();
   });
@@ -374,7 +557,8 @@ function renderSidebar() {
 
 function renderOverview(container) {
   const officer = getCurrentOfficer();
-  const docs = store.documents;
+  const cidOnly = isCidRank(officer) && !officer.is_admin;
+  const docs = cidOnly ? store.documents.filter(d => d.category === "doj") : store.documents;
   const pendingDocs = docs.filter(d => d.status === "PENDING");
   const approvedDoj = docs.filter(d => d.status === "APPROVED" && d.category === "doj");
   const approvedInternal = docs.filter(d => d.status === "APPROVED" && d.category === "internal");
@@ -536,7 +720,7 @@ function renderOverview(container) {
             </thead>
             <tbody>
               ${store.templates
-                .filter(tplItem => tplItem.active)
+                .filter(tplItem => tplItem.active && (!cidOnly || tplItem.category === "doj"))
                 .map(tplItem => {
                   const allowed = canIssueTemplate(officer, tplItem);
                   const tplResolved = resolveTemplateForLang(tplItem, lang);
@@ -792,6 +976,7 @@ function renderInspectModal(container) {
 
 function renderComposer(container, codeParam, savedValues = null) {
   const officer = getCurrentOfficer();
+  const cidOnly = isCidRank(officer) && !officer.is_admin;
 
   const hashParts = (window.location.hash || "").split("?");
   if (hashParts[1]) {
@@ -803,7 +988,11 @@ function renderComposer(container, codeParam, savedValues = null) {
   }
 
   const docLang = getDocumentLanguage();
-  const rawTpl = store.templates.find(tplItem => tplItem.code === (codeParam || "SW").toUpperCase()) || store.templates[0];
+  const availableTemplates = store.templates.filter(tplItem => tplItem.active && (!cidOnly || tplItem.category === "doj"));
+  const rawTpl =
+    availableTemplates.find(tplItem => tplItem.code === (codeParam || "SW").toUpperCase()) ||
+    availableTemplates[0] ||
+    store.templates[0];
   const tpl = resolveTemplateForLang(rawTpl, docLang);
   
   const fieldValues = { _lang: docLang, ...(savedValues || {}) };
@@ -834,8 +1023,7 @@ function renderComposer(container, codeParam, savedValues = null) {
       </div>
       <div class="header-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
         <select id="tpl-picker" class="select" style="width:280px;">
-          ${store.templates
-            .filter(tplItem => tplItem.active)
+          ${availableTemplates
             .map(tplItem => {
               const res = resolveTemplateForLang(tplItem, docLang);
               return `<option value="${esc(tplItem.code)}" ${tplItem.code === tpl.code ? "selected" : ""}>[${esc(tplItem.code)}] ${esc(res.name)}</option>`;
@@ -995,7 +1183,8 @@ function renderComposer(container, codeParam, savedValues = null) {
 
 function renderApprovals(container) {
   const officer = getCurrentOfficer();
-  const pending = store.documents.filter(d => d.status === "PENDING");
+  const cidOnly = isCidRank(officer) && !officer.is_admin;
+  const pending = store.documents.filter(d => d.status === "PENDING" && (!cidOnly || d.category === "doj"));
   const activeDoc = pending.find(d => Number(d.id) === Number(selectedInspectDocId)) || pending[0] || null;
   const lang = getLanguage();
 
@@ -1205,7 +1394,7 @@ function renderOfficers(container) {
                       <div style="font-weight:600;">${esc(o.rp_name)} ${o.is_admin ? `<span class="pill pill-neutral" style="margin-left:4px;">Admin</span>` : ""}</div>
                       <div class="mono" style="font-size:12px;color:var(--muted);">Distintivo #${esc(o.badge)} · Discord ${esc(maskId(o.discord_id))}</div>
                     </td>
-                    <td>${esc(o.rank_name)} (Nível ${o.rank_level})</td>
+                    <td>${esc(o.rank_name)} (${isCidRank(o) ? "Investigativo · DOJ" : `Nível ${o.rank_level}`})</td>
                     <td><span style="font-family:var(--font-sig);font-size:22px;color:var(--pen);">${esc(o.rp_name)}</span></td>
                     <td>
                       <span class="pill ${o.status === "active" ? "pill-approved" : o.status === "pending" ? "pill-pending" : "pill-rejected"}">
@@ -1252,7 +1441,7 @@ function renderOfficers(container) {
           <div class="field-group">
             <label class="field-label">Patente</label>
             <select class="select" name="rank_id">
-              ${store.ranks.map(r => `<option value="${r.id}">[Nível ${r.level}] ${esc(r.name)}</option>`).join("")}
+              ${store.ranks.map(r => `<option value="${r.id}">${isCidRank(r) ? `[DOJ · Nível ${r.level}]` : `[Nível ${r.level}]`} ${esc(r.name)}</option>`).join("")}
             </select>
           </div>
           <div class="field-group">
@@ -1340,7 +1529,9 @@ function renderRanks(container) {
                   <td style="font-weight:600;">${esc(r.name)}</td>
                   <td>
                     ${
-                      r.level >= 11
+                      isCidRank(r)
+                        ? `<span class="pill pill-approved">Somente DOJ (Investigativo)</span>`
+                        : r.level >= 11
                         ? `<span class="pill pill-approved">DOJ e Interno</span>`
                         : r.level >= 5
                         ? `<span class="pill pill-pending">Interno (Corporal+)</span>`
@@ -1348,7 +1539,7 @@ function renderRanks(container) {
                     }
                   </td>
                   <td>
-                    <input class="input mono" type="password" data-role-input="${r.id}" value="${esc(r.discord_role_id || "")}" placeholder="Role ID" style="height:28px;font-size:12px;" />
+                    <input class="input mono" type="text" data-role-input="${r.id}" value="${esc(r.discord_role_id || "")}" placeholder="Role ID" style="height:28px;font-size:12px;" />
                   </td>
                   <td class="num">
                     <button class="btn btn-secondary" data-save-rank="${r.id}" ${!caller.is_admin ? "disabled" : ""}>${esc(t("btnSave"))}</button>
@@ -1528,6 +1719,13 @@ export function renderApp() {
 
   renderSidebar();
   const main = document.getElementById("main-canvas");
+
+  if (officer.needs_rp_name || editingRpNameMode) {
+    renderRpNameOnboarding(main, officer);
+    return;
+  }
+
+  const cidOnly = isCidRank(officer) && !officer.is_admin;
   const hash = window.location.hash || "#/";
   const routeBase = hash.split("?")[0];
 
@@ -1536,11 +1734,11 @@ export function renderApp() {
     renderComposer(main, code);
   } else if (routeBase === "#/aprovacoes") {
     renderApprovals(main);
-  } else if (routeBase === "#/oficiais") {
+  } else if (routeBase === "#/oficiais" && !cidOnly) {
     renderOfficers(main);
-  } else if (routeBase === "#/patentes") {
+  } else if (routeBase === "#/patentes" && !cidOnly) {
     renderRanks(main);
-  } else if (routeBase === "#/modelos") {
+  } else if (routeBase === "#/modelos" && !cidOnly) {
     renderTemplatesAdmin(main);
   } else {
     renderOverview(main);

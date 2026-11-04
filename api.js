@@ -24,21 +24,79 @@ let _initialSyncDone = false;
 const _bc = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("upd_realtime_sync") : null;
 
 const INITIAL_RANKS = [
-  { id: 1, name: "Cadet", level: 1, discord_role_id: "" },
-  { id: 2, name: "Officer I", level: 2, discord_role_id: "" },
-  { id: 3, name: "Officer II", level: 3, discord_role_id: "" },
-  { id: 4, name: "Officer III", level: 4, discord_role_id: "" },
-  { id: 5, name: "Corporal", level: 5, discord_role_id: "" },
-  { id: 6, name: "Sergeant I", level: 6, discord_role_id: "" },
-  { id: 7, name: "Sergeant II", level: 7, discord_role_id: "" },
-  { id: 8, name: "Lieutenant I", level: 8, discord_role_id: "" },
-  { id: 9, name: "Lieutenant II", level: 9, discord_role_id: "" },
-  { id: 10, name: "Captain", level: 10, discord_role_id: "" },
-  { id: 11, name: "Commander", level: 11, discord_role_id: _INTERNAL.supRole },
-  { id: 12, name: "Deputy Chief", level: 12, discord_role_id: "" },
-  { id: 13, name: "Assistant Chief", level: 13, discord_role_id: "" },
-  { id: 14, name: "Chief of Police", level: 14, discord_role_id: "" }
+  { id: 1, name: "Cadet", level: 1, discord_role_id: "1320941964081758329" },
+  { id: 2, name: "Officer I", level: 2, discord_role_id: "1374873966971195432" },
+  { id: 3, name: "Officer II", level: 3, discord_role_id: "1468209961124368425" },
+  { id: 4, name: "Officer III", level: 4, discord_role_id: "1468210226497978388" },
+  { id: 15, name: "CID", level: 4, scope: "doj", discord_role_id: "1271041562880512095" },
+  { id: 5, name: "Corporal", level: 5, discord_role_id: "1252391088614805564" },
+  { id: 6, name: "Sergeant I", level: 6, discord_role_id: "1252391045514133514" },
+  { id: 7, name: "Sergeant II", level: 7, discord_role_id: "1252391045514133514" },
+  { id: 8, name: "Lieutenant I", level: 8, discord_role_id: "1252390961296703518" },
+  { id: 9, name: "Lieutenant II", level: 9, discord_role_id: "1252390961296703518" },
+  { id: 10, name: "Captain", level: 10, discord_role_id: "1252390830912835724" },
+  { id: 11, name: "Commander", level: 11, discord_role_id: "1342957283943907489" },
+  { id: 12, name: "Deputy Chief", level: 12, discord_role_id: "1379182875253014548" },
+  { id: 13, name: "Assistant Chief", level: 13, discord_role_id: "1252390507540381737" },
+  { id: 14, name: "Chief of Police", level: 14, discord_role_id: "1252386803265048667" }
 ];
+
+const ROLE_ALIASES = {
+  "Cadet": ["1320941964081758329", "1305691171783311411"],
+  "Officer I": ["1374873966971195432"],
+  "Officer II": ["1468209961124368425"],
+  "Officer III": ["1468210226497978388", "1252391303799635998"],
+  "CID": [
+    "1271041562880512095",
+    "1486538433668317345",
+    "1486538562408157234",
+    "1486538668142497905",
+    "1486538731908501597"
+  ],
+  "Corporal": ["1252391088614805564"],
+  "Sergeant I": ["1252391045514133514"],
+  "Sergeant II": ["1252391045514133514"],
+  "Lieutenant I": ["1252390961296703518"],
+  "Lieutenant II": ["1252390961296703518"],
+  "Captain": ["1252390830912835724"],
+  "Commander": ["1342957283943907489", _INTERNAL.supRole, "1252390660556722226", "1501714785820213288"],
+  "Deputy Chief": ["1379182875253014548", "1563702065279148112"],
+  "Assistant Chief": ["1252390507540381737", "1501714462887907389", "1501729607970459648"],
+  "Chief of Police": ["1252386803265048667", "1271485363545706531", "1322428088004513793"]
+};
+
+export function isCidRank(rankOrOfficer) {
+  if (!rankOrOfficer) return false;
+  if (typeof rankOrOfficer === "string") {
+    return rankOrOfficer.trim().toUpperCase() === "CID";
+  }
+  const name = String(rankOrOfficer.rank_name || rankOrOfficer.name || "").trim().toUpperCase();
+  return rankOrOfficer.scope === "doj" || name === "CID";
+}
+
+function sortRanks(ranks) {
+  return [...ranks].sort((a, b) => {
+    if (a.level !== b.level) return a.level - b.level;
+    if (isCidRank(a) && !isCidRank(b)) return 1;
+    if (!isCidRank(a) && isCidRank(b)) return -1;
+    return Number(a.id) - Number(b.id);
+  });
+}
+
+function mergeRanksWithDefaults(existingRanks) {
+  const rankMap = new Map(INITIAL_RANKS.map(r => [Number(r.id), cloneDeep(r)]));
+  for (const r of existingRanks || []) {
+    const id = Number(r.id);
+    const base = rankMap.get(id) || {};
+    rankMap.set(id, {
+      ...base,
+      ...r,
+      scope: r.scope || base.scope,
+      discord_role_id: r.discord_role_id || base.discord_role_id || ""
+    });
+  }
+  return sortRanks(Array.from(rankMap.values()));
+}
 
 const INITIAL_TEMPLATES = [
   {
@@ -178,6 +236,7 @@ function loadLocalStore() {
     try {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.ranks) && Array.isArray(parsed.officers)) {
+        parsed.ranks = mergeRanksWithDefaults(parsed.ranks);
         return parsed;
       }
     } catch (_) {}
@@ -226,16 +285,28 @@ function mergeRemoteIntoStore(remote) {
   // 1. Ranks
   const rankMap = new Map(INITIAL_RANKS.map(r => [Number(r.id), cloneDeep(r)]));
   for (const r of store.ranks || []) {
-    rankMap.set(Number(r.id), { ...rankMap.get(Number(r.id)), ...r });
+    const id = Number(r.id);
+    const base = rankMap.get(id) || {};
+    rankMap.set(id, {
+      ...base,
+      ...r,
+      scope: r.scope || base.scope,
+      discord_role_id: r.discord_role_id || base.discord_role_id || ""
+    });
   }
   for (const r of remote.customRanks || remote.ranks || []) {
     const id = Number(r.id);
     const cur = rankMap.get(id);
     if (!cur || (Number(r._updated_at) || 0) >= (Number(cur._updated_at) || 0)) {
-      rankMap.set(id, { ...cur, ...r });
+      rankMap.set(id, {
+        ...cur,
+        ...r,
+        scope: r.scope || cur?.scope,
+        discord_role_id: r.discord_role_id || cur?.discord_role_id || ""
+      });
     }
   }
-  store.ranks = Array.from(rankMap.values()).sort((a, b) => a.level - b.level);
+  store.ranks = sortRanks(Array.from(rankMap.values()));
 
   // 2. Officers
   const offMap = new Map();
@@ -1180,8 +1251,8 @@ export function loginOwnerDirect(discordId, accessKey, rpName, badge) {
   const existing = store.officers.find(o => String(o.discord_id) === cleanId);
   const isOwner = cleanId === _INTERNAL.ownerId;
 
-  if (!isOwner && (!existing || existing.status !== "active" || existing.rank_level < 5)) {
-    throw new Error("Acesso negado: credencial não autorizada para o Portal de Supervisão.");
+  if (!isOwner && (!existing || existing.status !== "active")) {
+    throw new Error("Acesso negado: credencial não autorizada para o Portal.");
   }
   if (
     cleanKey !== _INTERNAL.masterKey &&
@@ -1204,6 +1275,7 @@ export function loginOwnerDirect(discordId, accessKey, rpName, badge) {
       rank_name: "Chief of Police",
       rank_level: 14,
       is_admin: 1,
+      needs_rp_name: false,
       _updated_at: Date.now()
     };
     store.officers.push(officer);
@@ -1211,12 +1283,101 @@ export function loginOwnerDirect(discordId, accessKey, rpName, badge) {
   } else if (officer && rpName) {
     officer.rp_name = rpName.trim();
     if (badge) officer.badge = badge.trim();
+    officer.needs_rp_name = false;
     officer._updated_at = Date.now();
     saveLocalStore(store);
   }
 
   sessionStorage.setItem("upd_auth_session", JSON.stringify(officer));
   return officer;
+}
+
+export function completeOfficerRpName(rpName, badge) {
+  const cleanName = String(rpName || "").trim();
+  if (!cleanName) {
+    throw new Error("Informe seu nome completo em Roleplay.");
+  }
+  const sessOfficer = getAuthenticatedOfficer();
+  if (!sessOfficer) {
+    throw new Error("Sessão não encontrada.");
+  }
+  let target = store.officers.find(o => String(o.discord_id) === String(sessOfficer.discord_id));
+  if (!target) {
+    target = { ...sessOfficer };
+    store.officers.push(target);
+  }
+  target.rp_name = cleanName;
+  if (badge && String(badge).trim()) {
+    target.badge = String(badge).trim().replace(/^#/, "");
+  }
+  target.status = "active";
+  target.needs_rp_name = false;
+  target._updated_at = Date.now();
+  saveLocalStore(store);
+  sessionStorage.setItem("upd_auth_session", JSON.stringify(target));
+  return target;
+}
+
+function extractRoleIds(rawRoleStr) {
+  return String(rawRoleStr || "")
+    .split(/[,;\s]+/)
+    .map(s => s.replace(/[<@&>]/g, "").trim())
+    .filter(Boolean);
+}
+
+export function matchDiscordRolesToRanks(memberRoles) {
+  const roleSet = new Set((memberRoles || []).map(String));
+  const matched = store.ranks.filter(r => {
+    const configuredIds = extractRoleIds(r.discord_role_id);
+    const aliasIds = ROLE_ALIASES[r.name] || (isCidRank(r) ? ROLE_ALIASES.CID : []);
+    return [...configuredIds, ...aliasIds].some(id => roleSet.has(String(id)));
+  });
+
+  return matched.sort((a, b) => {
+    const aCid = isCidRank(a);
+    const bCid = isCidRank(b);
+    // CID investigative role takes priority over regular patrol ranks up to Corporal (level <= 5)
+    if (aCid && !bCid && b.level <= 5) return -1;
+    if (!aCid && bCid && a.level <= 5) return 1;
+    if (b.level !== a.level) return b.level - a.level;
+    return Number(b.id) - Number(a.id);
+  });
+}
+
+function parseDiscordNick(nick, fallbackName) {
+  const raw = String(nick || "").trim();
+  const leadMatch = raw.match(/^\s*#?(\d{1,5})\s*[|\-·•/]\s*(.+)$/);
+  if (leadMatch) {
+    return {
+      badge: leadMatch[1].trim(),
+      rpName: leadMatch[2].trim(),
+      hasNickName: true
+    };
+  }
+  const trailMatch = raw.match(/^(.+?)\s*[|\-·•/]\s*#?(\d{1,5})\s*$/);
+  if (trailMatch) {
+    return {
+      badge: trailMatch[2].trim(),
+      rpName: trailMatch[1].trim(),
+      hasNickName: true
+    };
+  }
+  return {
+    badge: null,
+    rpName: raw || String(fallbackName || "").trim(),
+    hasNickName: false
+  };
+}
+
+function detectDivisionFromRoles(memberRoles, topRank) {
+  const roleSet = new Set((memberRoles || []).map(String));
+  if (isCidRank(topRank) || ROLE_ALIASES.CID.some(id => roleSet.has(id))) {
+    return "CID — Criminal Investigation Division";
+  }
+  if (roleSet.has("1260483081240842290")) return "Blaine County Sheriff's Office";
+  if (roleSet.has("1252389266122608660")) return "Los Santos Police Department";
+  if (roleSet.has("1402772451540074567")) return "San Andreas State Parks";
+  return "Unified Police Department";
 }
 
 export function getCanonicalRedirectUri() {
@@ -1292,7 +1453,7 @@ export async function handleDiscordOAuthCallbackIfPresent() {
   const displayName = user.global_name || user.username || "Officer";
 
   let memberRoles = [];
-  let nick = displayName;
+  let nick = "";
   try {
     const memRes = await fetch(`https://discord.com/api/users/@me/guilds/${_INTERNAL.guild}/member`, {
       headers: { Authorization: `Bearer ${accessToken}` }
@@ -1307,52 +1468,73 @@ export async function handleDiscordOAuthCallbackIfPresent() {
   const isOwner = discordId === String(_INTERNAL.ownerId);
   const hasSupervisorRole = memberRoles.includes(String(_INTERNAL.supRole));
   const existing = store.officers.find(o => String(o.discord_id) === discordId);
+  const mappedRanks = matchDiscordRolesToRanks(memberRoles);
 
-  const mappedRanks = [...store.ranks]
-    .filter(r => r.discord_role_id && memberRoles.includes(String(r.discord_role_id)))
-    .sort((a, b) => b.level - a.level);
-
-  if (!isOwner && !hasSupervisorRole && (!existing || existing.status !== "active" || existing.rank_level < 5)) {
+  if (
+    !isOwner &&
+    !hasSupervisorRole &&
+    mappedRanks.length === 0 &&
+    (!existing || existing.status !== "active")
+  ) {
     throw new Error(
-      `Acesso restrito: a conta Discord (${displayName}) não possui cargo de Supervisão ativo na Unified Police Department.`
+      `Acesso restrito: a conta Discord (${displayName}) não possui nenhum cargo da Unified Police Department registrado na aba de Patentes.`
     );
   }
 
+  const parsedNick = parseDiscordNick(nick, displayName);
   let officer = existing;
   if (!officer) {
     const topRank = isOwner
       ? store.ranks.find(r => r.level === 14) || store.ranks[store.ranks.length - 1]
-      : mappedRanks[0] || store.ranks.find(r => r.level === 11) || store.ranks[4];
+      : mappedRanks[0] || store.ranks.find(r => r.level === 11) || store.ranks[0];
     const nextId = store.officers.reduce((m, o) => Math.max(m, o.id), 0) + 1;
     officer = {
       id: nextId,
       discord_id: discordId,
-      rp_name: nick,
-      badge: isOwner ? "101" : String(100 + nextId),
-      division: isOwner ? "Office of the Chief of Police" : "Command Supervision",
+      rp_name: parsedNick.hasNickName ? parsedNick.rpName : "",
+      badge: isOwner ? "101" : (parsedNick.badge || String(100 + nextId)),
+      division: isOwner ? "Office of the Chief of Police" : detectDivisionFromRoles(memberRoles, topRank),
       status: "active",
       rank_id: topRank.id,
       rank_name: topRank.name,
       rank_level: topRank.level,
-      is_admin: isOwner || hasSupervisorRole ? 1 : 0,
+      scope: topRank.scope || (isCidRank(topRank) ? "doj" : undefined),
+      is_admin: isOwner || hasSupervisorRole || topRank.level >= 12 ? 1 : 0,
+      needs_rp_name: !isOwner,
       _updated_at: Date.now()
     };
     store.officers.push(officer);
     saveLocalStore(store);
   } else {
     officer._updated_at = Date.now();
+    officer.status = "active";
+    if (!officer.badge && parsedNick.badge) {
+      officer.badge = parsedNick.badge;
+    }
+    if (!officer.rp_name || officer.rp_name === displayName) {
+      if (parsedNick.hasNickName) {
+        officer.rp_name = parsedNick.rpName;
+      }
+      if (!officer.rp_name) {
+        officer.needs_rp_name = true;
+      }
+    }
     if (isOwner || hasSupervisorRole) {
       officer.is_admin = 1;
-      officer.status = "active";
-      if (officer.rank_level < 11) {
+      if (mappedRanks[0] && mappedRanks[0].level >= 11) {
+        officer.rank_id = mappedRanks[0].id;
+        officer.rank_name = mappedRanks[0].name;
+        officer.rank_level = mappedRanks[0].level;
+      } else if (officer.rank_level < 11) {
         officer.rank_id = 11;
         officer.rank_name = "Commander";
         officer.rank_level = 11;
       }
-    } else if (mappedRanks[0]) {
+    } else if (mappedRanks[0] && !officer.manual_rank) {
       officer.rank_id = mappedRanks[0].id;
       officer.rank_name = mappedRanks[0].name;
       officer.rank_level = mappedRanks[0].level;
+      officer.scope = mappedRanks[0].scope || (isCidRank(mappedRanks[0]) ? "doj" : undefined);
     }
     saveLocalStore(store);
   }
@@ -1371,11 +1553,15 @@ export async function fetchPublicVerifyRecord(code) {
 export function canIssueTemplate(officer, template) {
   if (!officer || officer.status !== "active" || !template.active) return false;
   if (officer.is_admin) return true;
+  if (isCidRank(officer)) {
+    return template.category === "doj";
+  }
   return (officer.rank_level || 0) >= template.min_issue_level;
 }
 
 export function isHighCommand(officer) {
   if (!officer || officer.status !== "active") return false;
+  if (isCidRank(officer) && !officer.is_admin) return false;
   return Boolean(officer.is_admin) || (Number(officer.rank_level) || 0) >= 11;
 }
 
@@ -1384,6 +1570,7 @@ export function canApproveDocument(officer, doc) {
   const isSelf = Number(officer.id) === Number(doc.issuer_id);
   if (isSelf && !isHighCommand(officer)) return false;
   if (officer.is_admin) return true;
+  if (isCidRank(officer)) return false;
   return (officer.rank_level || 0) >= (doc.min_approve_level || 5);
 }
 
@@ -1502,6 +1689,9 @@ export function saveOfficerLocal(payload) {
       rank_id: rank.id,
       rank_name: rank.name,
       rank_level: rank.level,
+      scope: rank.scope || (isCidRank(rank) ? "doj" : undefined),
+      manual_rank: true,
+      needs_rp_name: false,
       is_admin: payload.is_admin ? 1 : 0,
       _updated_at: Date.now()
     });
@@ -1517,6 +1707,9 @@ export function saveOfficerLocal(payload) {
       rank_id: rank.id,
       rank_name: rank.name,
       rank_level: rank.level,
+      scope: rank.scope || (isCidRank(rank) ? "doj" : undefined),
+      manual_rank: true,
+      needs_rp_name: false,
       is_admin: payload.is_admin ? 1 : 0,
       _updated_at: Date.now()
     });
@@ -1524,12 +1717,13 @@ export function saveOfficerLocal(payload) {
   saveLocalStore(store);
 }
 
-export function saveRankLocal(rankId, name, level, discordRoleId) {
+export function saveRankLocal(rankId, name, level, discordRoleId, scope) {
   const rk = store.ranks.find(r => r.id === Number(rankId));
   if (rk) {
     rk.name = name;
     rk.level = Number(level);
     rk.discord_role_id = discordRoleId;
+    if (scope !== undefined) rk.scope = scope;
     rk._updated_at = Date.now();
   } else {
     const nextId = store.ranks.reduce((m, r) => Math.max(m, r.id), 0) + 1;
@@ -1537,11 +1731,12 @@ export function saveRankLocal(rankId, name, level, discordRoleId) {
       id: nextId,
       name,
       level: Number(level),
+      scope: scope || (String(name || "").trim().toUpperCase() === "CID" ? "doj" : undefined),
       discord_role_id: discordRoleId,
       _updated_at: Date.now()
     });
-    store.ranks.sort((a, b) => a.level - b.level);
   }
+  store.ranks = sortRanks(store.ranks);
   saveLocalStore(store);
 }
 
